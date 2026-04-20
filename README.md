@@ -1,6 +1,7 @@
 # ShowMyTrip
 
-ShowMyTrip is an Astro web app that connects to Strava and displays your running data in a clean dashboard with an animated run scene, key metrics, and period-based summaries.
+ShowMyTrip is an Astro web app that connects to Strava and displays your running data in a clean dashboard with an
+animated run scene, key metrics, and period-based summaries.
 
 ## Features
 
@@ -32,10 +33,11 @@ Create a `.env` file in the project root with:
 ```bash
 STRAVA_CLIENT_ID=your_client_id
 STRAVA_CLIENT_SECRET=your_client_secret
-STRAVA_REDIRECT_URI=http://localhost:4321/api/auth/strava/callback
+STRAVA_REDIRECT_URI=your_strava_redirect_uri
 ```
 
 Notes:
+
 - `STRAVA_REDIRECT_URI` must match the callback URL configured in your Strava app.
 - In production, set the production callback URL and use secure deployment settings.
 
