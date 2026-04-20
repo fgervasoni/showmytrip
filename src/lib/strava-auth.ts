@@ -22,11 +22,11 @@ export type StravaTokenResponse = {
 	};
 };
 
-export function getStravaEnv(env: ImportMetaEnv): StravaEnv {
+export function getStravaEnv(env?: ImportMetaEnv): StravaEnv {
 	return {
-		clientId: env.STRAVA_CLIENT_ID,
-		clientSecret: env.STRAVA_CLIENT_SECRET,
-		redirectUri: env.STRAVA_REDIRECT_URI,
+		clientId: process.env.STRAVA_CLIENT_ID ?? env?.STRAVA_CLIENT_ID ?? '',
+		clientSecret: process.env.STRAVA_CLIENT_SECRET ?? env?.STRAVA_CLIENT_SECRET ?? '',
+		redirectUri: process.env.STRAVA_REDIRECT_URI ?? env?.STRAVA_REDIRECT_URI ?? '',
 	};
 }
 
