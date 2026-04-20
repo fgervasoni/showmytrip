@@ -31,6 +31,7 @@ const hasPrev = currentPage > 0;
         id="activity-section"
         data-locale={locale}
         data-units={units}
+        data-loading-label={t(locale, 'loadingActivities')}
         data-current-page={String(currentPage)}
         data-has-more={String(hasMore)}
 >
@@ -41,34 +42,46 @@ const hasPrev = currentPage > 0;
         </span>
     </div>
 
-    <div class="activities-list" id="activities-list">
-        {activities.map((activity) => (
-                <button
-                        type="button"
-                        class="activity-item"
-                        data-activity-id={String(activity.id ?? '')}
-                        data-activity-speed={String(activity.average_speed ?? 2.5)}
-                        data-activity-name={activity.name ?? t(locale, 'noName')}
-                        data-activity-pace={formatPace(activity.distance, activity.moving_time, units)}
-                        data-activity-distance={formatDistance(activity.distance, units)}
-                        data-activity-duration={formatDuration(activity.moving_time)}
-                        data-activity-speed-label={formatSpeed(activity.average_speed)}
-                        data-activity-elevation={activity.total_elevation_gain ? `${activity.total_elevation_gain} m` : '-'}
-                        data-activity-elevation-raw={String(activity.total_elevation_gain ?? 0)}
-                        data-activity-kudos={typeof activity.kudos_count === 'number' ? String(activity.kudos_count) : '-'}
-                        data-activity-road-angle={getRoadAngle(activity).toFixed(2)}
-                        data-activity-runner-lift={String(getRunnerLiftPx(activity))}
-                        data-activity-start-hour={activity.start_date ? String(new Date(activity.start_date).getHours()) : '12'}
-                        aria-pressed={activity.id === selectedActivity?.id ? 'true' : 'false'}
-                >
-                    <span class="activity-item-title">{activity.name ?? t(locale, 'noName')}</span>
-                    <span class="activity-item-meta">
-                    {activity.type ?? 'Sport'} - {formatDistance(activity.distance, units)}
-                        - {formatPace(activity.distance, activity.moving_time, units)}
-                        - {formatDate(activity.start_date)}
-                </span>
-                </button>
-        ))}
+    <div class="activities-list-shell" id="activities-list-shell">
+        <div class="activities-list" id="activities-list">
+            {activities.map((activity) => (
+                    <button
+                            type="button"
+                            class="activity-item"
+                            data-activity-id={String(activity.id ?? '')}
+                            data-activity-speed={String(activity.average_speed ?? 2.5)}
+                            data-activity-name={activity.name ?? t(locale, 'noName')}
+                            data-activity-pace={formatPace(activity.distance, activity.moving_time, units)}
+                            data-activity-distance={formatDistance(activity.distance, units)}
+                            data-activity-duration={formatDuration(activity.moving_time)}
+                            data-activity-speed-label={formatSpeed(activity.average_speed)}
+                            data-activity-elevation={activity.total_elevation_gain ? `${activity.total_elevation_gain} m` : '-'}
+                            data-activity-elevation-raw={String(activity.total_elevation_gain ?? 0)}
+                            data-activity-kudos={typeof activity.kudos_count === 'number' ? String(activity.kudos_count) : '-'}
+                            data-activity-road-angle={getRoadAngle(activity).toFixed(2)}
+                            data-activity-runner-lift={String(getRunnerLiftPx(activity))}
+                            data-activity-start-hour={activity.start_date ? String(new Date(activity.start_date).getHours()) : '12'}
+                            aria-pressed={activity.id === selectedActivity?.id ? 'true' : 'false'}
+                    >
+                        <span class="activity-item-title">{activity.name ?? t(locale, 'noName')}</span>
+                        <span class="activity-item-meta">
+                        {activity.type ?? 'Sport'} - {formatDistance(activity.distance, units)}
+                            - {formatPace(activity.distance, activity.moving_time, units)}
+                            - {formatDate(activity.start_date)}
+                    </span>
+                    </button>
+            ))}
+        </div>
+        <div
+            class="activities-loading-indicator"
+            id="activities-loading-indicator"
+            role="status"
+            aria-live="polite"
+            aria-hidden="true"
+        >
+            <span class="loading-spinner" aria-hidden="true"></span>
+            <span>{t(locale, 'loadingActivities')}</span>
+        </div>
     </div>
 
     <div class="flex justify-center items-center gap-3 pt-2" id="pagination-controls">

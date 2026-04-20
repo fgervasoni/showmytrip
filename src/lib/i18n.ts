@@ -58,6 +58,10 @@ const translations = {
 		period3m: '3 months',
 		period6m: '6 months',
 		noActivitiesInPeriod: 'No activities found in this period.',
+		loadingActivities: 'Loading activities…',
+		loadingDashboard: 'Loading dashboard…',
+		loadingSummary: 'Loading summary…',
+		loadingPeriod: 'Loading selected period…',
 		// Scene
 		runAnimation: 'Run animation',
 		// Settings
@@ -112,6 +116,10 @@ const translations = {
 		period3m: '3 mesi',
 		period6m: '6 mesi',
 		noActivitiesInPeriod: 'Nessuna attività trovata in questo periodo.',
+		loadingActivities: 'Caricamento attività…',
+		loadingDashboard: 'Caricamento dashboard…',
+		loadingSummary: 'Caricamento riepilogo…',
+		loadingPeriod: 'Caricamento periodo selezionato…',
 		runAnimation: 'Animazione corsa',
 		language: 'Lingua',
 		theme: 'Tema',

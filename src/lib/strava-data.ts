@@ -66,7 +66,7 @@ export async function getStravaDashboardData(accessToken: string): Promise<Recor
         },
     };
 
-    cache.set(cacheKey, { data: result, timestamp: Date.now() });
+    cache.set(cacheKey, {data: result, timestamp: Date.now()});
     return result;
 }
 
@@ -83,24 +83,20 @@ export async function getStravaAthleteData(accessToken: string, days = 7): Promi
     const athleteResult = await fetchStravaEndpoint('/athlete', accessToken);
     const athleteId = getAthleteId(athleteResult.data);
 
-    const [statsResult, activitiesResult, clubsResult, zonesResult] = await Promise.all([
+    const [statsResult, activitiesResult] = await Promise.all([
         athleteId
             ? fetchStravaEndpoint(`/athletes/${athleteId}/stats`, accessToken)
             : Promise.resolve({
                 data: null,
                 error: 'Impossibile recuperare stats: id atleta non disponibile.',
             }),
-        fetchStravaEndpoint(`/athlete/activities?per_page=200&page=1&after=${afterTimestamp}`, accessToken),
-        fetchStravaEndpoint('/athlete/clubs?page=1&per_page=50', accessToken),
-        fetchStravaEndpoint('/athlete/zones', accessToken),
+        fetchStravaEndpoint(`/athlete/activities?per_page=50&page=1&after=${afterTimestamp}`, accessToken),
     ]);
 
     const errors = {
         athlete: athleteResult.error,
         stats: statsResult.error,
         recentActivities: activitiesResult.error,
-        clubs: clubsResult.error,
-        zones: zonesResult.error,
     };
 
     // Log errors to console for debugging
@@ -113,8 +109,6 @@ export async function getStravaAthleteData(accessToken: string, days = 7): Promi
         athlete: athleteResult.data,
         stats: statsResult.data,
         recentActivities: activitiesResult.data,
-        clubs: clubsResult.data,
-        zones: zonesResult.data,
         errors,
     };
 

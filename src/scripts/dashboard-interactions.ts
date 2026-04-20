@@ -675,7 +675,9 @@ function initDashboard() {
 // PAGINATION (AJAX)
 // =============================================
     const activitySection = document.getElementById('activity-section') as HTMLElement | null;
+    const activitiesListShell = document.getElementById('activities-list-shell') as HTMLElement | null;
     const activitiesList = document.getElementById('activities-list') as HTMLElement | null;
+    const activitiesLoadingIndicator = document.getElementById('activities-loading-indicator') as HTMLElement | null;
     const prevBtn = document.getElementById('page-prev') as HTMLButtonElement | null;
     const nextBtn = document.getElementById('page-next') as HTMLButtonElement | null;
     const pageIndicator = document.getElementById('page-indicator');
@@ -687,6 +689,8 @@ function initDashboard() {
 
         const noName = locale === 'it' ? 'Attività senza nome' : 'Unnamed activity';
         const pageLabel = locale === 'it' ? 'Pagina' : 'Page';
+        const loadingLabel = activitySection.dataset.loadingLabel
+            ?? (locale === 'it' ? 'Caricamento attività…' : 'Loading activities…');
 
         // Track selected activity id across page changes
         let selectedActivityId: string | null = null;
@@ -732,11 +736,25 @@ function initDashboard() {
             });
         };
 
+        const setActivitiesLoading = (isLoading: boolean): void => {
+            activitySection.setAttribute('aria-busy', String(isLoading));
+            activitiesList.setAttribute('aria-busy', String(isLoading));
+            activitiesList.style.opacity = isLoading ? '0.35' : '';
+            activitiesList.style.pointerEvents = isLoading ? 'none' : '';
+
+            if (activitiesLoadingIndicator) {
+                activitiesLoadingIndicator.setAttribute('aria-hidden', String(!isLoading));
+                const text = activitiesLoadingIndicator.querySelector('span:last-child');
+                if (text) text.textContent = loadingLabel;
+            }
+
+            activitiesListShell?.classList.toggle('is-loading', isLoading);
+        };
+
         const fetchPage = async (page: number): Promise<void> => {
             if (prevBtn) prevBtn.disabled = true;
             if (nextBtn) nextBtn.disabled = true;
-            activitiesList.style.opacity = '0.4';
-            activitiesList.style.pointerEvents = 'none';
+            setActivitiesLoading(true);
 
             try {
                 const res = await fetch(`/api/activities?page=${page + 1}&per_page=${PAGE_SIZE}`);
@@ -758,8 +776,7 @@ function initDashboard() {
             } catch (err) {
                 console.error('[pagination] error:', err);
             } finally {
-                activitiesList.style.opacity = '';
-                activitiesList.style.pointerEvents = '';
+                setActivitiesLoading(false);
                 const curPage = Number(activitySection.dataset.currentPage ?? '0');
                 if (prevBtn) prevBtn.disabled = curPage === 0;
                 if (nextBtn) nextBtn.disabled = activitySection.dataset.hasMore !== 'true';

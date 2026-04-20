@@ -50,6 +50,8 @@ const {
                 <a
                         href="/"
                         class={`tab-link${activeTab === 'dashboard' ? ' active' : ''}`}
+                        data-route-loading
+                        data-loading-label={t(locale, 'loadingDashboard')}
                         aria-current={activeTab === 'dashboard' ? 'page' : undefined}
                 >
                     {t(locale, 'dashboard')}
@@ -57,6 +59,8 @@ const {
                 <a
                         href="/summary"
                         class={`tab-link${activeTab === 'summary' ? ' active' : ''}`}
+                        data-route-loading
+                        data-loading-label={t(locale, 'loadingSummary')}
                         aria-current={activeTab === 'summary' ? 'page' : undefined}
                 >
                     {t(locale, 'summary')}

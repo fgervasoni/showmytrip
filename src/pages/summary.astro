@@ -65,6 +65,8 @@ const athleteName =
 								? 'bg-orange-500 border-orange-500 text-white'
 								: 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-orange-400 hover:text-orange-500',
 						].join(' ')}
+						data-route-loading
+						data-loading-label={t(locale, 'loadingPeriod')}
 						aria-current={selectedDays === days ? 'page' : undefined}
 					>
 						{periodLabels[days]}
