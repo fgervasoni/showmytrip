@@ -1,0 +1,223 @@
+---
+import type { RunActivity, Units } from '../../lib/run-helpers';
+import { formatDistance, formatDuration, formatPace, formatDate } from '../../lib/run-helpers';
+import { t, type Locale } from '../../lib/i18n';
+import flagIcon from 'lucide-static/icons/flag.svg?raw';
+import chartIcon from 'lucide-static/icons/bar-chart-3.svg?raw';
+import trophyIcon from 'lucide-static/icons/trophy.svg?raw';
+import medalIcon from 'lucide-static/icons/medal.svg?raw';
+import zapIcon from 'lucide-static/icons/zap.svg?raw';
+import mountainIcon from 'lucide-static/icons/mountain.svg?raw';
+import timerIcon from 'lucide-static/icons/timer.svg?raw';
+import thumbsUpIcon from 'lucide-static/icons/thumbs-up.svg?raw';
+import calendarIcon from 'lucide-static/icons/calendar.svg?raw';
+import awardIcon from 'lucide-static/icons/award.svg?raw';
+
+interface Props {
+	activities: RunActivity[];
+	locale: Locale;
+	units: Units;
+}
+
+const { activities, locale, units } = Astro.props;
+
+const validActivities = activities.filter((a) => a.distance && a.moving_time);
+const count = validActivities.length;
+
+// Totals
+const totalDistance = validActivities.reduce((sum, a) => sum + (a.distance ?? 0), 0);
+const totalElevation = validActivities.reduce((sum, a) => sum + (a.total_elevation_gain ?? 0), 0);
+const totalTime = validActivities.reduce((sum, a) => sum + (a.moving_time ?? 0), 0);
+const totalKudos = validActivities.reduce((sum, a) => sum + (a.kudos_count ?? 0), 0);
+
+// Averages
+const avgDistance = count > 0 ? totalDistance / count : 0;
+const avgMovingTime = count > 0 ? totalTime / count : 0;
+const avgElevation = count > 0 ? totalElevation / count : 0;
+
+const hrActivities = validActivities.filter((a) => typeof a.average_heartrate === 'number');
+const avgHr = hrActivities.length > 0
+	? hrActivities.reduce((sum, a) => sum + (a.average_heartrate ?? 0), 0) / hrActivities.length
+	: 0;
+
+// Records
+const longestRun = validActivities.reduce<RunActivity | null>((best, a) => (!best || (a.distance ?? 0) > (best.distance ?? 0)) ? a : best, null);
+const fastestRun = validActivities.reduce<RunActivity | null>((best, a) => (!best || (a.average_speed ?? 0) > (best.average_speed ?? 0)) ? a : best, null);
+const mostElevation = validActivities.reduce<RunActivity | null>((best, a) => (!best || (a.total_elevation_gain ?? 0) > (best.total_elevation_gain ?? 0)) ? a : best, null);
+const longestDuration = validActivities.reduce<RunActivity | null>((best, a) => (!best || (a.moving_time ?? 0) > (best.moving_time ?? 0)) ? a : best, null);
+const mostKudos = validActivities.reduce<RunActivity | null>((best, a) => (!best || (a.kudos_count ?? 0) > (best.kudos_count ?? 0)) ? a : best, null);
+
+// By type
+const byType = new Map<string, RunActivity[]>();
+validActivities.forEach((a) => {
+	const t = a.type ?? 'Altro';
+	if (!byType.has(t)) byType.set(t, []);
+	byType.get(t)!.push(a);
+});
+
+// Weekly frequency (last 4 weeks)
+const now = Date.now();
+const fourWeeksAgo = now - 28 * 24 * 60 * 60 * 1000;
+const recentCount = validActivities.filter((a) => a.start_date && new Date(a.start_date).getTime() > fourWeeksAgo).length;
+const weeklyAvg = (recentCount / 4).toFixed(1);
+
+// Streak: consecutive days with activity
+const activityDates = [...new Set(validActivities
+	.filter((a) => a.start_date)
+	.map((a) => new Date(a.start_date!).toDateString())
+)].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+let streak = 0;
+if (activityDates.length > 0) {
+	streak = 1;
+	for (let i = 0; i < activityDates.length - 1; i++) {
+		const diff = new Date(activityDates[i]).getTime() - new Date(activityDates[i + 1]).getTime();
+		if (diff <= 86400000 * 1.5) streak++;
+		else break;
+	}
+}
+---
+
+<div class="space-y-8">
+	{/* Totals */}
+	<section aria-label={t(locale, 'totals')}>
+		<h2 class="section-title"><span class="app-icon" set:html={flagIcon} /> {t(locale, 'totals')}</h2>
+		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+			<article class="card">
+				<h3>{t(locale, 'activities')}</h3>
+				<p>{count}</p>
+			</article>
+			<article class="card">
+				<h3>{t(locale, 'distance')}</h3>
+				<p>{formatDistance(totalDistance, units)}</p>
+			</article>
+			<article class="card">
+				<h3>{t(locale, 'time')}</h3>
+				<p>{formatDuration(totalTime)}</p>
+			</article>
+			<article class="card">
+				<h3>{t(locale, 'elevation')}</h3>
+				<p>{Math.round(totalElevation)} m</p>
+			</article>
+			<article class="card">
+				<h3>{t(locale, 'kudos')}</h3>
+				<p>{totalKudos}</p>
+			</article>
+		</div>
+	</section>
+
+	{/* Averages */}
+	<section aria-label={t(locale, 'averagesPerActivity')}>
+		<h2 class="section-title"><span class="app-icon" set:html={chartIcon} /> {t(locale, 'averagesPerActivity')}</h2>
+		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+			<article class="card">
+				<h3>{t(locale, 'distance')}</h3>
+				<p>{formatDistance(avgDistance, units)}</p>
+			</article>
+			<article class="card">
+				<h3>{t(locale, 'time')}</h3>
+				<p>{formatDuration(avgMovingTime)}</p>
+			</article>
+			<article class="card">
+				<h3>{t(locale, 'pace')}</h3>
+				<p>{formatPace(avgDistance, avgMovingTime, units)}</p>
+			</article>
+			<article class="card">
+				<h3>{t(locale, 'elevation')}</h3>
+				<p>{Math.round(avgElevation)} m</p>
+			</article>
+			{avgHr > 0 && (
+				<article class="card">
+					<h3>{t(locale, 'heartRate')}</h3>
+					<p>{Math.round(avgHr)} bpm</p>
+				</article>
+			)}
+		</div>
+	</section>
+
+	{/* Personal records */}
+	<section aria-label={t(locale, 'personalRecords')}>
+		<h2 class="section-title"><span class="app-icon" set:html={trophyIcon} /> {t(locale, 'personalRecords')}</h2>
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+			{longestRun && (
+				<article class="card record-card">
+					<h3><span class="app-icon" set:html={medalIcon} /> {t(locale, 'longestRun')}</h3>
+					<p>{formatDistance(longestRun.distance, units)}</p>
+					<span class="record-meta">{longestRun.name} — {formatDate(longestRun.start_date)}</span>
+				</article>
+			)}
+			{fastestRun && (
+				<article class="card record-card">
+					<h3><span class="app-icon" set:html={zapIcon} /> {t(locale, 'bestPace')}</h3>
+					<p>{formatPace(fastestRun.distance, fastestRun.moving_time, units)}</p>
+					<span class="record-meta">{fastestRun.name} — {formatDate(fastestRun.start_date)}</span>
+				</article>
+			)}
+			{mostElevation && (
+				<article class="card record-card">
+					<h3><span class="app-icon" set:html={mountainIcon} /> {t(locale, 'mostElevation')}</h3>
+					<p>{mostElevation.total_elevation_gain} m</p>
+					<span class="record-meta">{mostElevation.name} — {formatDate(mostElevation.start_date)}</span>
+				</article>
+			)}
+			{longestDuration && (
+				<article class="card record-card">
+					<h3><span class="app-icon" set:html={timerIcon} /> {t(locale, 'longestDuration')}</h3>
+					<p>{formatDuration(longestDuration.moving_time)}</p>
+					<span class="record-meta">{longestDuration.name} — {formatDate(longestDuration.start_date)}</span>
+				</article>
+			)}
+			{mostKudos && (mostKudos.kudos_count ?? 0) > 0 && (
+				<article class="card record-card">
+					<h3><span class="app-icon" set:html={thumbsUpIcon} /> {t(locale, 'mostKudos')}</h3>
+					<p>{mostKudos.kudos_count}</p>
+					<span class="record-meta">{mostKudos.name} — {formatDate(mostKudos.start_date)}</span>
+				</article>
+			)}
+		</div>
+	</section>
+
+	{/* Consistency */}
+	<section aria-label={t(locale, 'consistency')}>
+		<h2 class="section-title"><span class="app-icon" set:html={calendarIcon} /> {t(locale, 'consistency')}</h2>
+		<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+			<article class="card">
+				<h3>{t(locale, 'weeklyAverage')}</h3>
+				<p>{weeklyAvg} <span class="text-sm font-normal text-gray-400">{t(locale, 'actPerWeek')}</span></p>
+			</article>
+			<article class="card">
+				<h3>{t(locale, 'currentStreak')}</h3>
+				<p>{streak} <span class="text-sm font-normal text-gray-400">{streak === 1 ? t(locale, 'day') : t(locale, 'days')}</span></p>
+			</article>
+			<article class="card">
+				<h3>{t(locale, 'activeDays')}</h3>
+				<p>{activityDates.length}</p>
+			</article>
+		</div>
+	</section>
+
+	{/* By sport type */}
+	{byType.size > 1 && (
+		<section aria-label={t(locale, 'bySport')}>
+			<h2 class="section-title"><span class="app-icon" set:html={awardIcon} /> {t(locale, 'bySport')}</h2>
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+				{[...byType.entries()].map(([type, acts]) => {
+					const dist = acts.reduce((s, a) => s + (a.distance ?? 0), 0);
+					const time = acts.reduce((s, a) => s + (a.moving_time ?? 0), 0);
+					return (
+						<article class="card">
+							<h3>{type}</h3>
+							<p>{acts.length} <span class="text-sm font-normal text-gray-400">{t(locale, 'activities').toLowerCase()}</span></p>
+							<div class="mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+								<div>{t(locale, 'distance')}: {formatDistance(dist, units)}</div>
+								<div>{t(locale, 'time')}: {formatDuration(time)}</div>
+								<div>{t(locale, 'avgPaceLabel')}: {formatPace(dist / acts.length, time / acts.length, units)}</div>
+							</div>
+						</article>
+					);
+				})}
+			</div>
+		</section>
+	)}
+</div>
+

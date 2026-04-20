@@ -1,46 +1,102 @@
-# Astro Starter Kit: Basics
+# ShowMyTrip
 
-```sh
-npm create astro@latest -- --template basics
+ShowMyTrip is an Astro web app that connects to Strava and displays your running data in a clean dashboard with an animated run scene, key metrics, and period-based summaries.
+
+## Features
+
+- Strava OAuth login/logout flow
+- Dashboard with recent activities and quick stats
+- Animated run scene synced with selected activity pace/profile
+- Summary page with aggregates for 7, 31, 90, and 180 days
+- Language switcher (`en` / `it`)
+- Unit switcher (`km` / `mi`)
+- Theme switcher (`light` / `dark` / `system`)
+
+## Tech Stack
+
+- Astro (server output)
+- TypeScript
+- Tailwind CSS
+- Node adapter (`@astrojs/node`, standalone mode)
+
+## Requirements
+
+- Node.js `>=22.12.0`
+- npm
+- A Strava API application (for OAuth credentials)
+
+## Environment Variables
+
+Create a `.env` file in the project root with:
+
+```bash
+STRAVA_CLIENT_ID=your_client_id
+STRAVA_CLIENT_SECRET=your_client_secret
+STRAVA_REDIRECT_URI=http://localhost:4321/api/auth/strava/callback
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Notes:
+- `STRAVA_REDIRECT_URI` must match the callback URL configured in your Strava app.
+- In production, set the production callback URL and use secure deployment settings.
 
-## 🚀 Project Structure
+## Getting Started
 
-Inside of your Astro project, you'll see the following folders and files:
+```bash
+npm install
+npm run dev
+```
+
+App is available at `http://localhost:4321`.
+
+## Available Scripts
+
+```bash
+npm run dev
+npm run build
+npm run preview
+npm run astro -- --help
+```
+
+## Main Routes
+
+- `/` - Dashboard (or Strava connect hero when not authenticated)
+- `/summary` - Aggregated activity summary by selected period
+- `/activities` - Activity-focused page
+- `/api/activities` - Paginated activities proxy endpoint
+- `/api/auth/strava/login` - Starts Strava OAuth flow
+- `/api/auth/strava/callback` - OAuth callback endpoint
+- `/api/auth/strava/logout` - Clears auth cookie
+
+## Project Structure
 
 ```text
-/
-├── public/
-│   └── favicon.svg
-├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
-└── package.json
+showMyTrip/
+|- public/
+|- src/
+|  |- components/
+|  |  |- dashboard/
+|  |- layouts/
+|  |- lib/
+|  |- pages/
+|  |  |- api/
+|  |- scripts/
+|  |- styles/
+|- astro.config.mjs
+|- package.json
 ```
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+## Authentication and Data Notes
 
-## 🧞 Commands
+- Strava access token is stored in an HTTP-only cookie.
+- Locale and units preferences are stored in cookies.
+- Theme preference is stored in localStorage.
+- Strava dashboard/summary data is cached in-memory server-side for short periods.
 
-All commands are run from the root of the project, from a terminal:
+## Build for Production
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+```bash
+npm run build
+npm run preview
+```
 
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+This project is configured with Astro server output and Node adapter standalone mode.

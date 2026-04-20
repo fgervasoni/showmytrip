@@ -1,0 +1,84 @@
+---
+import type {RunActivity} from '../../lib/run-helpers';
+import {
+    formatDate,
+    formatDistance,
+    formatDuration,
+    formatPace,
+    formatSpeed,
+    getRoadAngle,
+    getRunnerLiftPx,
+} from '../../lib/run-helpers';
+import {t, type Locale} from '../../lib/i18n';
+import type {Units} from '../../lib/run-helpers';
+
+interface Props {
+    activities: RunActivity[];
+    selectedActivity?: RunActivity;
+    locale: Locale;
+    units: Units;
+    currentPage?: number;
+    hasMore?: boolean;
+}
+
+const {activities, selectedActivity, locale, units, currentPage = 0, hasMore = false} = Astro.props;
+const hasPrev = currentPage > 0;
+---
+
+<section
+        class="space-y-3"
+        aria-label={t(locale, 'recentActivities')}
+        id="activity-section"
+        data-locale={locale}
+        data-units={units}
+        data-current-page={String(currentPage)}
+        data-has-more={String(hasMore)}
+>
+    <div class="flex justify-between items-center">
+        <h2 class="dark:text-white text-lg font-semibold m-0">{t(locale, 'recentActivities')}</h2>
+        <span class="text-xs text-gray-500 dark:text-gray-400" id="page-indicator">
+            {t(locale, 'page')} {currentPage + 1}
+        </span>
+    </div>
+
+    <div class="activities-list" id="activities-list">
+        {activities.map((activity) => (
+                <button
+                        type="button"
+                        class="activity-item"
+                        data-activity-id={String(activity.id ?? '')}
+                        data-activity-speed={String(activity.average_speed ?? 2.5)}
+                        data-activity-name={activity.name ?? t(locale, 'noName')}
+                        data-activity-pace={formatPace(activity.distance, activity.moving_time, units)}
+                        data-activity-distance={formatDistance(activity.distance, units)}
+                        data-activity-duration={formatDuration(activity.moving_time)}
+                        data-activity-speed-label={formatSpeed(activity.average_speed)}
+                        data-activity-elevation={activity.total_elevation_gain ? `${activity.total_elevation_gain} m` : '-'}
+                        data-activity-elevation-raw={String(activity.total_elevation_gain ?? 0)}
+                        data-activity-kudos={typeof activity.kudos_count === 'number' ? String(activity.kudos_count) : '-'}
+                        data-activity-road-angle={getRoadAngle(activity).toFixed(2)}
+                        data-activity-runner-lift={String(getRunnerLiftPx(activity))}
+                        data-activity-start-hour={activity.start_date ? String(new Date(activity.start_date).getHours()) : '12'}
+                        aria-pressed={activity.id === selectedActivity?.id ? 'true' : 'false'}
+                >
+                    <span class="activity-item-title">{activity.name ?? t(locale, 'noName')}</span>
+                    <span class="activity-item-meta">
+                    {activity.type ?? 'Sport'} - {formatDistance(activity.distance, units)}
+                        - {formatPace(activity.distance, activity.moving_time, units)}
+                        - {formatDate(activity.start_date)}
+                </span>
+                </button>
+        ))}
+    </div>
+
+    <div class="flex justify-center items-center gap-3 pt-2" id="pagination-controls">
+        <button type="button" id="page-prev" class="pagination-btn" disabled={!hasPrev} aria-label="Previous">
+            {t(locale, 'prev')}
+        </button>
+        <button type="button" id="page-next" class="pagination-btn" disabled={!hasMore} aria-label="Next">
+            {t(locale, 'next')}
+        </button>
+    </div>
+</section>
+
+

@@ -1,0 +1,70 @@
+---
+import {t, type Locale} from '../lib/i18n';
+import SettingsMenu from './SettingsMenu.astro';
+import personStandingIcon from 'lucide-static/icons/person-standing.svg?raw';
+
+interface Props {
+    locale: Locale;
+    athleteName: string;
+    activeTab: 'dashboard' | 'summary';
+    subtitle?: string;
+    showRunPace?: boolean;
+    selectedRunName?: string;
+    runPace?: string;
+}
+
+const {
+    locale,
+    athleteName,
+    activeTab,
+    subtitle,
+    showRunPace = false,
+    selectedRunName,
+    runPace,
+} = Astro.props;
+---
+
+<header class="dashboard-header">
+    <div class="dashboard-header-inner">
+        <div class="dashboard-header-title">
+            <h1 class="flex items-center gap-2">
+                <span class="app-icon text-orange-500 shrink-0" set:html={personStandingIcon}/>
+                <span class="truncate">{t(locale, 'hello')} {athleteName || t(locale, 'runner')}!</span>
+            </h1>
+            {showRunPace ? (
+                    <p>
+                    <span class="inline-flex items-center gap-1 min-w-0">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block shrink-0"/>
+                        <span id="selected-run-name"
+                              class="truncate">{selectedRunName ?? t(locale, 'notAvailable')}</span>
+                    </span>
+                        {' '}— {t(locale, 'avgPace')} <strong id="selected-run-pace"
+                                                              class="text-orange-600">{runPace ?? '-'}</strong>
+                    </p>
+            ) : subtitle ? (
+                    <p>{subtitle}</p>
+            ) : null}
+        </div>
+        <div class="dashboard-header-nav">
+            <nav class="flex gap-4 text-sm" aria-label="Navigation">
+                <a
+                        href="/"
+                        class={`tab-link${activeTab === 'dashboard' ? ' active' : ''}`}
+                        aria-current={activeTab === 'dashboard' ? 'page' : undefined}
+                >
+                    {t(locale, 'dashboard')}
+                </a>
+                <a
+                        href="/summary"
+                        class={`tab-link${activeTab === 'summary' ? ' active' : ''}`}
+                        aria-current={activeTab === 'summary' ? 'page' : undefined}
+                >
+                    {t(locale, 'summary')}
+                </a>
+            </nav>
+            <span class="w-px h-5 bg-gray-200 dark:bg-gray-700"/>
+            <SettingsMenu locale={locale} showLogout={true}/>
+        </div>
+    </div>
+</header>
+

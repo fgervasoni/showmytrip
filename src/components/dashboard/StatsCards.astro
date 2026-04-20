@@ -1,0 +1,42 @@
+---
+import type { RunActivity, Units } from '../../lib/run-helpers';
+import { formatDistance, formatDuration } from '../../lib/run-helpers';
+import { t, type Locale } from '../../lib/i18n';
+import rulerIcon from 'lucide-static/icons/ruler.svg?raw';
+import clock3Icon from 'lucide-static/icons/clock-3.svg?raw';
+import footprintsIcon from 'lucide-static/icons/footprints.svg?raw';
+import mountainIcon from 'lucide-static/icons/mountain.svg?raw';
+import thumbsUpIcon from 'lucide-static/icons/thumbs-up.svg?raw';
+
+interface Props {
+	activity?: RunActivity;
+	runPace: string;
+	locale: Locale;
+	units: Units;
+}
+
+const { activity, runPace, locale, units } = Astro.props;
+---
+
+<section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" aria-label="Stats">
+	<article class="card group">
+		<h2><span class="app-icon" set:html={rulerIcon} /> {t(locale, 'distance')}</h2>
+		<p id="metric-distance" class="metric-value">{formatDistance(activity?.distance, units)}</p>
+	</article>
+	<article class="card group">
+		<h2><span class="app-icon" set:html={clock3Icon} /> {t(locale, 'time')}</h2>
+		<p id="metric-duration" class="metric-value">{formatDuration(activity?.moving_time)}</p>
+	</article>
+	<article class="card group">
+		<h2><span class="app-icon" set:html={footprintsIcon} /> {t(locale, 'pace')}</h2>
+		<p id="metric-pace" class="metric-value">{runPace}</p>
+	</article>
+	<article class="card group">
+		<h2><span class="app-icon" set:html={mountainIcon} /> {t(locale, 'elevation')}</h2>
+		<p id="metric-elevation" class="metric-value">{activity?.total_elevation_gain ? `${activity.total_elevation_gain} m` : '-'}</p>
+	</article>
+	<article class="card group">
+		<h2><span class="app-icon" set:html={thumbsUpIcon} /> {t(locale, 'kudos')}</h2>
+		<p id="metric-kudos" class="metric-value">{typeof activity?.kudos_count === 'number' ? activity.kudos_count : '-'}</p>
+	</article>
+</section>

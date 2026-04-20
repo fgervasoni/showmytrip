@@ -1,0 +1,93 @@
+---
+import Layout from '../layouts/Layout.astro';
+import AverageStats from '../components/dashboard/AverageStats.astro';
+import { getStravaAthleteData } from '../lib/strava-data';
+import { STRAVA_TOKEN_COOKIE } from '../lib/strava-auth';
+import type { RunActivity } from '../lib/run-helpers';
+import { t, getLocale, getUnits, LOCALE_COOKIE, UNITS_COOKIE, type Locale } from '../lib/i18n';
+import DashboardHeader from '../components/DashboardHeader.astro';
+import Footer from '../components/Footer.astro';
+import type { Units } from '../lib/run-helpers';
+
+const locale = getLocale(Astro.cookies.get(LOCALE_COOKIE)?.value) as Locale;
+const units = getUnits(Astro.cookies.get(UNITS_COOKIE)?.value) as Units;
+const accessToken = Astro.cookies.get(STRAVA_TOKEN_COOKIE)?.value;
+
+if (!accessToken) {
+	return Astro.redirect('/');
+}
+
+const VALID_DAYS = [7, 31, 90, 180] as const;
+type PeriodDays = (typeof VALID_DAYS)[number];
+const rawDays = Number(Astro.url.searchParams.get('days') ?? '7');
+const selectedDays: PeriodDays = (VALID_DAYS.includes(rawDays as PeriodDays) ? rawDays : 7) as PeriodDays;
+
+const dashboardData = await getStravaAthleteData(accessToken, selectedDays);
+// apiErrors passed to inline script via define:vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const apiErrors = dashboardData?.errors as Record<string, string | null> | undefined;
+
+const recentActivities = Array.isArray(dashboardData?.recentActivities)
+	? (dashboardData.recentActivities as RunActivity[])
+	: [];
+
+const periodLabels: Record<PeriodDays, string> = {
+	7: t(locale, 'period7d'),
+	31: t(locale, 'period31d'),
+	90: t(locale, 'period3m'),
+	180: t(locale, 'period6m'),
+};
+
+const athleteName =
+	typeof dashboardData?.athlete === 'object' && dashboardData?.athlete !== null && 'firstname' in dashboardData.athlete
+		? `${String((dashboardData.athlete as { firstname?: string }).firstname ?? '')} ${String((dashboardData.athlete as { lastname?: string }).lastname ?? '')}`.trim()
+		: '';
+---
+
+<Layout>
+	<main class="container">
+		<section class="dashboard max-w-5xl mx-auto px-4">
+			<DashboardHeader
+				locale={locale}
+				athleteName={athleteName}
+				activeTab="summary"
+				subtitle={t(locale, 'activitySummary')}
+			/>
+			<div class="dashboard-body animate-slide-up">
+			{/* Period selector */}
+			<nav aria-label="Period selector" class="flex gap-2 flex-wrap mb-6">
+				{([7, 31, 90, 180] as const).map((days) => (
+					<a
+						href={`?days=${days}`}
+						class={[
+							'px-4 py-1.5 rounded-full text-sm font-medium transition-colors border',
+							selectedDays === days
+								? 'bg-orange-500 border-orange-500 text-white'
+								: 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-orange-400 hover:text-orange-500',
+						].join(' ')}
+						aria-current={selectedDays === days ? 'page' : undefined}
+					>
+						{periodLabels[days]}
+					</a>
+				))}
+			</nav>
+			{recentActivities.length === 0 ? (
+				<p class="text-center text-gray-400 py-12">{t(locale, 'noActivitiesInPeriod')}</p>
+			) : (
+				<AverageStats activities={recentActivities} locale={locale} units={units} />
+			)}
+		</div>
+			<Footer />
+		</section>
+	</main>
+</Layout>
+<script>
+import '../scripts/settings-menu.ts';
+</script>
+<script is:inline define:vars={{ apiErrors }}>
+if (apiErrors) {
+    Object.entries(apiErrors).forEach(([key, err]) => {
+        if (err) console.error('[strava-data] ' + key + ':', err);
+    });
+}
+</script>

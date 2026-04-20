@@ -1,11 +1,117 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
+import ActivityList from '../components/dashboard/ActivityList.astro';
+import RunScene from '../components/dashboard/RunScene.astro';
+import StatsCards from '../components/dashboard/StatsCards.astro';
+import {getStravaDashboardData} from '../lib/strava-data';
+import {STRAVA_TOKEN_COOKIE} from '../lib/strava-auth';
+import {
+    type RunActivity,
+    formatPace,
+    getRoadAngle,
+} from '../lib/run-helpers';
+import {t, getLocale, getUnits, LOCALE_COOKIE, UNITS_COOKIE, type Locale} from '../lib/i18n';
+import Footer from '../components/Footer.astro';
+import DashboardHeader from '../components/DashboardHeader.astro';
+import SettingsMenu from '../components/SettingsMenu.astro';
+import type {Units} from '../lib/run-helpers';
+import personStandingIcon from 'lucide-static/icons/person-standing.svg?raw';
+import link2Icon from 'lucide-static/icons/link-2.svg?raw';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const locale = getLocale(Astro.cookies.get(LOCALE_COOKIE)?.value) as Locale;
+const units = getUnits(Astro.cookies.get(UNITS_COOKIE)?.value) as Units;
+const hasStravaToken = Astro.cookies.has(STRAVA_TOKEN_COOKIE);
+const accessToken = Astro.cookies.get(STRAVA_TOKEN_COOKIE)?.value;
+
+const dashboardData = accessToken ? await getStravaDashboardData(accessToken) : null;
+// apiErrors passed to inline script via define:vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const apiErrors = dashboardData?.errors as Record<string, string | null> | undefined;
+const PAGE_SIZE = 5;
+const recentActivities = Array.isArray(dashboardData?.recentActivities)
+    ? (dashboardData.recentActivities as RunActivity[])
+    : [];
+const hasMore = recentActivities.length >= PAGE_SIZE;
+const latestRun = recentActivities.find((activity) => activity?.type === 'Run');
+const selectedActivity = latestRun ?? recentActivities[0];
+
+const athleteName =
+    typeof dashboardData?.athlete === 'object' && dashboardData?.athlete !== null && 'firstname' in dashboardData.athlete
+        ? `${String((dashboardData.athlete as {
+            firstname?: string
+        }).firstname ?? '')} ${String((dashboardData.athlete as { lastname?: string }).lastname ?? '')}`.trim()
+        : '';
+
+const runPace = selectedActivity ? formatPace(selectedActivity.distance, selectedActivity.moving_time, units) : '-';
+const initialSpeed = selectedActivity?.average_speed ?? 2.5;
+const initialRoadAngle = getRoadAngle(selectedActivity);
 ---
 
 <Layout>
-	<Welcome />
+    <main class="container">
+        {
+            hasStravaToken && dashboardData ? (
+                    <section class="dashboard max-w-5xl mx-auto px-4">
+                        <DashboardHeader
+                                locale={locale}
+                                athleteName={athleteName}
+                                activeTab="dashboard"
+                                showRunPace={true}
+                                selectedRunName={selectedActivity?.name ?? t(locale, 'notAvailable')}
+                                runPace={runPace}
+                        />
+                        <div class="dashboard-body space-y-6">
+                            <div class="animate-slide-up" style="animation-delay: 0.1s">
+                                <StatsCards activity={selectedActivity} runPace={runPace} locale={locale}
+                                            units={units}/>
+                            </div>
+
+                            <div class="animate-slide-up" style="animation-delay: 0.2s">
+                                <RunScene
+                                        initialSpeed={initialSpeed}
+                                        initialRoadAngle={initialRoadAngle}
+                                />
+                            </div>
+
+                            <div class="animate-slide-up" style="animation-delay: 0.3s">
+                                <ActivityList activities={recentActivities} selectedActivity={selectedActivity}
+                                              locale={locale} units={units} currentPage={0} hasMore={hasMore}/>
+                            </div>
+                        </div>
+                        <Footer/>
+                    </section>
+            ) : (
+                    <section class="hero-section">
+                        <div class="hero-content animate-fade-in">
+                            <div class="hero-icon text-orange-500"><span class="app-icon"
+                                                                         set:html={personStandingIcon}/></div>
+                            <h1 class="text-5xl font-extrabold tracking-tight text-gray-900 dark:text-white">Show<span
+                                    class="text-orange-500">My</span>Trip</h1>
+                            <p class="text-gray-500 dark:text-gray-400 text-lg max-w-md text-center leading-relaxed">{t(locale, 'heroDescription')}</p>
+                            <div class="flex items-center gap-3">
+                                <SettingsMenu locale={locale}/>
+                            </div>
+                            <a href="/api/auth/strava/login" class="strava-connect-btn"
+                               aria-label={t(locale, 'connectStrava')}>
+                                <span class="app-icon" set:html={link2Icon}/>
+                                {t(locale, 'connectStrava')}
+                            </a>
+                        </div>
+                    </section>
+            )
+        }
+    </main>
 </Layout>
+<script>
+    import '../scripts/dashboard-interactions.ts';
+    import '../scripts/settings-menu.ts';
+</script>
+<script is:inline define:vars={{apiErrors}}>
+    if (apiErrors) {
+        Object.entries(apiErrors).forEach(([key, err]) => {
+            if (err) console.error('[strava-data] ' + key + ':', err);
+        });
+    }
+</script>
+
+

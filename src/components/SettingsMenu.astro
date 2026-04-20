@@ -1,0 +1,79 @@
+---
+import {t, type Locale} from '../lib/i18n';
+import settingsIcon from 'lucide-static/icons/settings.svg?raw';
+import sunIcon from 'lucide-static/icons/sun.svg?raw';
+import moonIcon from 'lucide-static/icons/moon.svg?raw';
+import monitorIcon from 'lucide-static/icons/monitor.svg?raw';
+import logOutIcon from 'lucide-static/icons/log-out.svg?raw';
+
+interface Props {
+    locale: Locale;
+    showLogout?: boolean;
+}
+
+const {locale, showLogout = false} = Astro.props;
+---
+
+<div class="settings-menu-wrapper relative" data-settings-menu>
+    <button type="button" class="icon-btn settings-btn" aria-label="Settings" aria-expanded="false"
+            aria-haspopup="true">
+        <span class="lucide-icon" set:html={settingsIcon}/>
+    </button>
+
+    <div class="settings-dropdown hidden" role="menu">
+        <div class="settings-title">Preferences</div>
+
+        <div class="settings-section">
+            <div class="settings-row">
+                <span class="settings-label">{t(locale, 'language')}</span>
+                <div class="settings-options">
+                    <button type="button" class="settings-option" data-locale="en" role="menuitemradio"
+                            aria-checked={locale === 'en' ? 'true' : 'false'}>EN
+                    </button>
+                    <button type="button" class="settings-option" data-locale="it" role="menuitemradio"
+                            aria-checked={locale === 'it' ? 'true' : 'false'}>IT
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-row">
+                <span class="settings-label">{t(locale, 'theme')}</span>
+                <div class="settings-options">
+                    <button type="button" class="settings-option settings-option-icon" data-theme="light"
+                            role="menuitemradio" aria-label="Light" title="Light">
+                        <span class="lucide-icon size-5" set:html={sunIcon}/>
+                    </button>
+                    <button type="button" class="settings-option settings-option-icon" data-theme="dark"
+                            role="menuitemradio" aria-label="Dark" title="Dark">
+                        <span class="lucide-icon size-5" set:html={moonIcon}/>
+                    </button>
+                    <button type="button" class="settings-option settings-option-icon" data-theme="system"
+                            role="menuitemradio" aria-label="System" title="System">
+                        <span class="lucide-icon size-5" set:html={monitorIcon}/>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-row">
+                <span class="settings-label">{t(locale, 'units')}</span>
+                <div class="settings-options">
+                    <button type="button" class="settings-option" data-units="km" role="menuitemradio">km</button>
+                    <button type="button" class="settings-option" data-units="mi" role="menuitemradio">mi</button>
+                </div>
+            </div>
+        </div>
+
+        {showLogout && (
+                <div class="settings-section settings-section-logout">
+                    <a href="/api/auth/strava/logout" class="settings-option settings-option-logout" role="menuitem">
+                        <span class="lucide-icon" set:html={logOutIcon}/>
+                        {t(locale, 'disconnect')}
+                    </a>
+                </div>
+        )}
+    </div>
+</div>
