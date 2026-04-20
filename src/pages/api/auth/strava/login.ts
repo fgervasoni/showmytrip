@@ -13,7 +13,7 @@ export const GET: APIRoute = async ({ cookies, redirect }) => {
 
 	if (missingEnvVars.length > 0) {
 		return new Response(
-			`Config mancante. Imposta queste variabili ambiente: ${missingEnvVars.join(', ')}`,
+			`Missing configuration. Set these environment variables: ${missingEnvVars.join(', ')}`,
 			{ status: 500 },
 		);
 	}
