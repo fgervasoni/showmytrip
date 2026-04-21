@@ -15,6 +15,11 @@ if (!window.__showMyTripRouteLoadingInit) {
 	const SHOW_DELAY_MS = 150;
 
 	const ensureOverlay = (): void => {
+		// Re-create if the overlay was removed from the DOM (e.g. Astro View Transition swap)
+		if (overlay && !overlay.isConnected) {
+			overlay = null;
+			labelEl = null;
+		}
 		if (overlay) return;
 
 		overlay = document.createElement('div');
@@ -53,6 +58,10 @@ if (!window.__showMyTripRouteLoadingInit) {
 	const hideLoader = (): void => {
 		clearShowTimer();
 		pendingLabel = '';
+		if (overlay && !overlay.isConnected) {
+			overlay = null;
+			labelEl = null;
+		}
 		overlay?.classList.remove('visible');
 		overlay?.setAttribute('aria-hidden', 'true');
 		document.body.classList.remove('page-loading');

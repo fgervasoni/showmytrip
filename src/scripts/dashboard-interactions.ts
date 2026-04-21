@@ -15,7 +15,13 @@ function initDashboard() {
     // Kill any previous instance (SPA navigation)
     if ((window as any).__showMyTripCleanup) {
         (window as any).__showMyTripCleanup();
+        (window as any).__showMyTripCleanup = null;
     }
+
+    // Bail out early if no scene on this page (e.g. summary)
+    const sceneCheck = document.querySelector('.scene-wrapper');
+    const listCheck = document.getElementById('activities-list');
+    if (!sceneCheck && !listCheck) return;
 
     let alive = true;
     const timers: number[] = [];
@@ -32,10 +38,19 @@ function initDashboard() {
     flagTooltip.className = 'scene-flag-tooltip';
     document.body.appendChild(flagTooltip);
 
+    // Track gsap-animated elements for targeted cleanup
+    const gsapTargets: (Element | object)[] = [];
+    const gsapTo = (target: any, vars: gsap.TweenVars): gsap.core.Tween => {
+        gsapTargets.push(target);
+        return gsap.to(target, vars);
+    };
+
     (window as any).__showMyTripCleanup = () => {
         alive = false;
         timers.forEach((id) => clearTimeout(id));
-        gsap.killTweensOf('*');
+        // Only kill tweens we created — not '*' which nukes the new page too
+        gsapTargets.forEach((t) => gsap.killTweensOf(t));
+        gsapTargets.length = 0;
         flagTooltip.remove();
     };
 
@@ -80,16 +95,20 @@ function initDashboard() {
         let direction = -1; // -1 = going up, 1 = going down
 
         const generateNextY = (): number => {
-            // Step size depends on elevation angle
-            const stepBase = 1 + currentAngle * 0.55;
+            // Quadratic curve: amplifica molto di più i dislivelli alti rispetto a quelli bassi
+            const angleNorm = currentAngle / 35; // 0..1
+            const angleSq = angleNorm * angleNorm;
+
+            // Step size: da ~1px (piatto) a ~28px (ripidissimo)
+            const stepBase = 1 + angleSq * 27;
             const step = stepBase + (Math.random() * stepBase * 0.6);
 
             lastY += direction * step;
 
-            // Road lives in viewBox Y range ~260-390
-            const range = 10 + currentAngle * 4;
-            const upperLimit = clamp(320 - range, 250, 310);
-            const lowerLimit = clamp(320 + range, 330, 390);
+            // Range di oscillazione Y: da ~8px (piatto) a ~115px (ripidissimo)
+            const range = 8 + angleSq * 115;
+            const upperLimit = clamp(320 - range, 175, 312);
+            const lowerLimit = clamp(320 + range, 328, 400);
 
             if (lastY <= upperLimit) {
                 lastY = upperLimit;
@@ -244,6 +263,10 @@ function initDashboard() {
 
             renderRoad();
             renderScrollElements();
+            updateMountains();
+            updateBirds(dt);
+            updateGrass();
+            updateFlowers();
             positionRunner();
             positionFlags();
             if (alive) requestAnimationFrame(tick);
@@ -264,7 +287,7 @@ function initDashboard() {
             const type = Math.random();
             if (type < 0.3) {
                 // Small hop
-                gsap.to({v: 0}, {
+                gsapTo({v: 0}, {
                     v: 1,
                     duration: 0.35,
                     ease: 'power2.out',
@@ -275,7 +298,7 @@ function initDashboard() {
             } else if (type < 0.6) {
                 // Speed burst
                 const origSpeed = baseScrollSpeed;
-                gsap.to({v: 0}, {
+                gsapTo({v: 0}, {
                     v: 1,
                     duration: 1.2,
                     ease: 'power2.inOut',
@@ -312,7 +335,16 @@ function initDashboard() {
 
         // Activity flag
         // Each flag scrolls with the road and persists until it exits the scene
-        type FlagData = { el: HTMLElement; worldX: number; name: string };
+        type FlagData = {
+            el: HTMLElement;
+            worldX: number;
+            name: string;
+            pendingSpeed?: number;
+            pendingAngle?: number;
+            pendingElevation?: number;
+            pendingHour?: number;
+            applied?: boolean;
+        };
         const flags: FlagData[] = [];
 
         // Shared tooltip appended to body to avoid overflow:hidden clipping
@@ -331,24 +363,6 @@ function initDashboard() {
             flagTooltip.classList.remove('visible');
         };
 
-        const placeFlag = (name: string): void => {
-            // Spawn off-screen to the right so the flag enters naturally with the road scroll
-            const worldX = roadOffsetX + 1100;
-            const wrapper = document.createElement('div');
-            wrapper.className = 'scene-flag';
-            const banner = document.createElement('div');
-            banner.className = 'scene-flag-banner';
-            const pole = document.createElement('div');
-            pole.className = 'scene-flag-pole';
-            wrapper.appendChild(banner);
-            wrapper.appendChild(pole);
-            wrapper.addEventListener('mouseenter', () => showFlagTooltip(name, wrapper));
-            wrapper.addEventListener('mouseleave', hideFlagTooltip);
-            // Append to sceneWrapper (not rocksContainer) to avoid pointer-events:none and overflow:hidden
-            sceneWrapper.appendChild(wrapper);
-            flags.push({el: wrapper, worldX, name});
-        };
-
         const positionFlags = (): void => {
             if (flags.length === 0) return;
             const svgRect = roadSvg.getBoundingClientRect();
@@ -356,9 +370,35 @@ function initDashboard() {
             const scaleX = svgRect.width / 1000;
             const scaleY = svgRect.height / 400;
 
+            // Runner world X position
+            const runnerWorldX = runnerXRatio * 1000 + roadOffsetX;
+
             for (let i = flags.length - 1; i >= 0; i--) {
                 const f = flags[i];
                 const screenX = (f.worldX - roadOffsetX) * scaleX + (svgRect.left - sceneRect.left);
+
+                // Apply pending speed/angle when runner reaches this flag
+                if (!f.applied && runnerWorldX >= f.worldX) {
+                    f.applied = true;
+                    if (f.pendingSpeed !== undefined) {
+                        const wasNight = isNightTime();
+                        currentSpeed = f.pendingSpeed;
+                        currentAngle = f.pendingAngle ?? currentAngle;
+                        currentElevation = f.pendingElevation ?? currentElevation;
+                        currentHour = f.pendingHour ?? currentHour;
+                        sceneWrapper.dataset.speed = String(currentSpeed);
+                        sceneWrapper.dataset.angle = String(currentAngle);
+                        updateScrollSpeed();
+                        applySkyColors(currentHour);
+                        updateCelestial(currentHour);
+
+                        // Clear old elements if switching between day/night
+                        if (wasNight !== isNightTime()) {
+                            scrollElements.forEach((item) => item.el.remove());
+                            scrollElements.length = 0;
+                        }
+                    }
+                }
 
                 // Remove flag once it exits to the left
                 if (screenX < -20) {
@@ -563,9 +603,442 @@ function initDashboard() {
             if (skyGradientStops.length < 3) return;
             const [top, mid, bottom] = getSkyColors(hour);
 
-            gsap.to(skyGradientStops[0], {attr: {'stop-color': top}, duration: 1.5, ease: 'power2.inOut'});
-            gsap.to(skyGradientStops[1], {attr: {'stop-color': mid}, duration: 1.5, ease: 'power2.inOut'});
-            gsap.to(skyGradientStops[2], {attr: {'stop-color': bottom}, duration: 1.5, ease: 'power2.inOut'});
+            gsapTo(skyGradientStops[0], {attr: {'stop-color': top}, duration: 1.5, ease: 'power2.inOut'});
+            gsapTo(skyGradientStops[1], {attr: {'stop-color': mid}, duration: 1.5, ease: 'power2.inOut'});
+            gsapTo(skyGradientStops[2], {attr: {'stop-color': bottom}, duration: 1.5, ease: 'power2.inOut'});
+        };
+
+        // =============================================
+        // CELESTIAL BODY (sun / moon)
+        // =============================================
+        const celestialBody = document.getElementById('celestial-body') as HTMLElement | null;
+
+        const updateCelestial = (hour: number): void => {
+            if (!celestialBody) return;
+            const isNight = hour >= 20 || hour < 6;
+
+            // Switch sun ↔ moon class
+            celestialBody.classList.toggle('celestial-sun', !isNight);
+            celestialBody.classList.toggle('celestial-moon', isNight);
+
+            // Arc position: map hour to progress 0→1 within day/night cycle
+            let progress: number;
+            if (!isNight) {
+                progress = clamp((hour - 6) / 14, 0, 1);
+            } else {
+                const nightHour = hour >= 20 ? hour - 20 : hour + 4;
+                progress = clamp(nightHour / 10, 0, 1);
+            }
+
+            const sceneW = sceneWrapper.getBoundingClientRect().width || 800;
+            const sceneH = sceneWrapper.getBoundingClientRect().height || 340;
+
+            // Horizontal: 8% → 92%
+            const x = sceneW * (0.08 + progress * 0.84);
+
+            // Vertical: parabolic arc — highest (smallest Y) at center (progress=0.5)
+            // topMin = top of arc, topMax = near horizon
+            const topMin = sceneH * 0.06;
+            const topMax = sceneH * 0.52;
+            // 4*(p-0.5)^2 goes from 1 (edges) to 0 (center)
+            const parabola = 4 * (progress - 0.5) ** 2;
+            const topY = topMin + (topMax - topMin) * parabola;
+
+            gsapTo(celestialBody, {
+                left: x - 20,
+                top: topY,
+                duration: 1.5,
+                ease: 'power2.inOut',
+            });
+
+            // Fade near horizon
+            const edgeFade = 1 - Math.max(0, (Math.abs(progress - 0.5) - 0.35) / 0.15);
+            gsapTo(celestialBody, {opacity: clamp(edgeFade, 0.1, 1), duration: 1.5, ease: 'power2.inOut'});
+        };
+
+        // =============================================
+        // MOUNTAINS (parallax silhouettes)
+        // =============================================
+        const mountainsContainer = document.getElementById('mountains-container') as HTMLElement | null;
+
+        const buildMountainSVG = (peaks: number[], color: string, opacity: number): SVGSVGElement => {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 2000 400');
+            svg.setAttribute('preserveAspectRatio', 'none');
+            svg.style.position = 'absolute';
+            svg.style.bottom = '0';
+            svg.style.left = '0';
+            svg.style.width = '200%';
+            svg.style.height = '100%';
+
+            let d = 'M0,400 ';
+            const segW = 2000 / (peaks.length - 1);
+            peaks.forEach((h, i) => {
+                const x = i * segW;
+                const y = 400 - h;
+                if (i === 0) {
+                    d += `L${x},${y} `;
+                } else {
+                    // Smooth curves between peaks
+                    const prevX = (i - 1) * segW;
+                    const cpx1 = prevX + segW * 0.5;
+                    const cpy1 = 400 - peaks[i - 1];
+                    const cpx2 = x - segW * 0.5;
+                    d += `C${cpx1},${cpy1} ${cpx2},${y} ${x},${y} `;
+                }
+            });
+            d += 'L2000,400 Z';
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', d);
+            path.setAttribute('fill', color);
+            path.setAttribute('opacity', String(opacity));
+            svg.appendChild(path);
+            return svg;
+        };
+
+        const mountainLayers: { el: SVGSVGElement; speed: number }[] = [];
+
+        const initMountains = (): void => {
+            if (!mountainsContainer) return;
+            mountainsContainer.innerHTML = '';
+            mountainLayers.length = 0;
+
+            // Layer 0: far mountains (small, faint)
+            const farPeaks = Array.from({length: 12}, () => 40 + Math.random() * 80);
+            const farSvg = buildMountainSVG(farPeaks, '#94a3b8', 0.2);
+            mountainsContainer.appendChild(farSvg);
+            mountainLayers.push({el: farSvg, speed: 0.008});
+
+            // Layer 1: mid mountains
+            const midPeaks = Array.from({length: 8}, () => 60 + Math.random() * 120);
+            const midSvg = buildMountainSVG(midPeaks, '#64748b', 0.15);
+            mountainsContainer.appendChild(midSvg);
+            mountainLayers.push({el: midSvg, speed: 0.02});
+
+            // Layer 2: near hills
+            const nearPeaks = Array.from({length: 10}, () => 30 + Math.random() * 60);
+            const nearSvg = buildMountainSVG(nearPeaks, '#475569', 0.1);
+            mountainsContainer.appendChild(nearSvg);
+            mountainLayers.push({el: nearSvg, speed: 0.04});
+        };
+
+        const updateMountains = (): void => {
+            mountainLayers.forEach(({el, speed}) => {
+                const offset = -(roadOffsetX * speed) % (el.getBoundingClientRect().width / 2 || 1600);
+                el.style.transform = `translateX(${offset}px)`;
+            });
+        };
+
+        // =============================================
+        // BIRDS
+        // =============================================
+        const birdsContainer = document.getElementById('birds-container') as HTMLElement | null;
+
+        type BirdData = { el: HTMLElement; x: number; y: number; speed: number; wobblePhase: number };
+        const birds: BirdData[] = [];
+
+        const buildBird = (size: number): HTMLElement => {
+            const el = document.createElement('div');
+            el.className = 'bird-el';
+            el.style.width = `${size}px`;
+            el.style.height = `${size * 0.6}px`;
+
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 24 12');
+            svg.setAttribute('overflow', 'visible');
+            svg.style.width = '100%';
+            svg.style.height = '100%';
+
+            const color = isNightTime() ? '#94a3b8' : '#1f2937';
+
+            // Left wing — rotates around body center
+            const gLeft = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            gLeft.setAttribute('class', 'bird-wing-left');
+            const leftWing = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            leftWing.setAttribute('d', 'M12,9 Q8,3 1,1');
+            leftWing.setAttribute('stroke', color);
+            leftWing.setAttribute('stroke-width', '1.8');
+            leftWing.setAttribute('stroke-linecap', 'round');
+            leftWing.setAttribute('fill', 'none');
+            gLeft.appendChild(leftWing);
+            svg.appendChild(gLeft);
+
+            // Right wing
+            const gRight = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            gRight.setAttribute('class', 'bird-wing-right');
+            const rightWing = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            rightWing.setAttribute('d', 'M12,9 Q16,3 23,1');
+            rightWing.setAttribute('stroke', color);
+            rightWing.setAttribute('stroke-width', '1.8');
+            rightWing.setAttribute('stroke-linecap', 'round');
+            rightWing.setAttribute('fill', 'none');
+            gRight.appendChild(rightWing);
+            svg.appendChild(gRight);
+
+            // Body dot
+            const body = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            body.setAttribute('cx', '12');
+            body.setAttribute('cy', '9');
+            body.setAttribute('r', '1.2');
+            body.setAttribute('fill', color);
+            svg.appendChild(body);
+
+            // Randomize flap speed
+            const flapDuration = 0.3 + Math.random() * 0.25;
+            gLeft.style.transformOrigin = '12px 9px';
+            gRight.style.transformOrigin = '12px 9px';
+            gLeft.style.animation = `bird-flap-left ${flapDuration}s ease-in-out infinite`;
+            gRight.style.animation = `bird-flap-right ${flapDuration}s ease-in-out infinite`;
+
+            el.appendChild(svg);
+            return el;
+        };
+
+        const spawnBird = (): void => {
+            if (!birdsContainer || isNightTime()) return;
+            const sceneH = sceneWrapper.getBoundingClientRect().height || 340;
+            const sceneW = sceneWrapper.getBoundingClientRect().width || 800;
+            const size = 12 + Math.random() * 16;
+            const el = buildBird(size);
+            const x = sceneW + 20;
+            const y = 15 + Math.random() * sceneH * 0.35;
+            const speed = 40 + Math.random() * 60;
+
+            el.style.position = 'absolute';
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            el.style.opacity = `${0.4 + Math.random() * 0.4}`;
+            birdsContainer.appendChild(el);
+            birds.push({el, x, y, speed, wobblePhase: Math.random() * Math.PI * 2});
+        };
+
+        const scheduleBird = (): void => {
+            if (!alive) return;
+            spawnBird();
+            safeTimeout(scheduleBird, 3000 + Math.random() * 6000);
+        };
+
+        const updateBirds = (dt: number): void => {
+            for (let i = birds.length - 1; i >= 0; i--) {
+                const b = birds[i];
+                b.x -= b.speed * dt;
+                b.wobblePhase += dt * 2;
+                const wobble = Math.sin(b.wobblePhase) * 3;
+                b.el.style.left = `${b.x}px`;
+                b.el.style.top = `${b.y + wobble}px`;
+
+                if (b.x < -40) {
+                    b.el.remove();
+                    birds.splice(i, 1);
+                }
+            }
+        };
+
+        // =============================================
+        // GRASS TUFTS along road
+        // =============================================
+        const grassContainer = document.getElementById('grass-container') as HTMLElement | null;
+
+        type GrassTuft = { el: HTMLElement; worldX: number };
+        const grassTufts: GrassTuft[] = [];
+        let grassNextX = -100;
+        const GRASS_INTERVAL = 35;
+        // Vegetation only spawns at worldX >= this value (set when entering high elevation)
+        let vegetationStartX = -Infinity;
+
+        const buildGrassTuft = (): HTMLElement => {
+            const el = document.createElement('div');
+            el.className = 'grass-tuft';
+            const bladeCount = 3 + Math.floor(Math.random() * 4);
+
+            for (let i = 0; i < bladeCount; i++) {
+                const blade = document.createElement('div');
+                blade.className = 'grass-blade';
+                const h = 6 + Math.random() * 10;
+                const hue = 100 + Math.random() * 40; // green range
+                const lightness = 35 + Math.random() * 20;
+                blade.style.height = `${h}px`;
+                blade.style.left = `${i * 3 - (bladeCount * 1.5)}px`;
+                blade.style.background = `hsl(${hue}, 50%, ${lightness}%)`;
+                blade.style.animationDelay = `${Math.random() * 2}s`;
+                blade.style.animationDuration = `${1.5 + Math.random() * 1.5}s`;
+                blade.style.transform = `rotate(${(Math.random() - 0.5) * 20}deg)`;
+                el.appendChild(blade);
+            }
+            return el;
+        };
+
+        const spawnGrass = (worldX: number): void => {
+            if (!grassContainer || currentElevation < 500 || worldX < vegetationStartX) return;
+            const el = buildGrassTuft();
+            el.style.position = 'absolute';
+            el.style.left = '0px';
+            el.style.opacity = `${0.5 + Math.random() * 0.35}`;
+            grassContainer.appendChild(el);
+            grassTufts.push({el, worldX});
+        };
+
+        const updateGrass = (): void => {
+            if (!grassContainer) return;
+            const svgRect = roadSvg.getBoundingClientRect();
+            const sceneRect = sceneWrapper.getBoundingClientRect();
+            const scaleX = svgRect.width / 1000;
+            const scaleY = svgRect.height / 400;
+
+            // Spawn grass ahead
+            const rightEdge = roadOffsetX + 1200;
+            while (grassNextX < rightEdge) {
+                spawnGrass(grassNextX);
+                grassNextX += GRASS_INTERVAL + Math.random() * 25;
+            }
+
+            // Position & cull
+            for (let i = grassTufts.length - 1; i >= 0; i--) {
+                const g = grassTufts[i];
+                const screenX = (g.worldX - roadOffsetX) * scaleX + (svgRect.left - sceneRect.left);
+
+                if (screenX < -30) {
+                    g.el.remove();
+                    grassTufts.splice(i, 1);
+                    continue;
+                }
+
+                // Find road Y at this worldX
+                let roadY = 320;
+                for (let j = 0; j < roadPoints.length - 1; j++) {
+                    const p0 = roadPoints[j];
+                    const p1 = roadPoints[j + 1];
+                    if (g.worldX >= p0.x && g.worldX <= p1.x) {
+                        const t = (g.worldX - p0.x) / (p1.x - p0.x);
+                        roadY = p0.y + (p1.y - p0.y) * t;
+                        break;
+                    }
+                }
+
+                const screenY = svgRect.top - sceneRect.top + roadY * scaleY;
+                // Place grass slightly above or below road line for variety
+                const offset = (i % 2 === 0) ? -2 : 3;
+                g.el.style.left = `${screenX}px`;
+                g.el.style.top = `${screenY + offset}px`;
+            }
+        };
+
+
+        // =============================================
+        // FLOWERS along road
+        // =============================================
+        type FlowerData = { el: HTMLElement; worldX: number };
+        const flowers: FlowerData[] = [];
+        let flowerNextX = -50;
+        const FLOWER_INTERVAL = 80;
+
+        const FLOWER_COLORS = [
+            ['#ef4444', '#fbbf24'], // red + yellow center
+            ['#a855f7', '#fbbf24'], // purple
+            ['#3b82f6', '#fde68a'], // blue
+            ['#ec4899', '#fbbf24'], // pink
+            ['#f97316', '#fde68a'], // orange
+            ['#facc15', '#a16207'], // yellow
+        ];
+
+        const buildFlower = (): HTMLElement => {
+            const el = document.createElement('div');
+            el.className = 'flower-el';
+            el.style.animation = `flower-sway ${2 + Math.random() * 2}s ease-in-out infinite`;
+            el.style.animationDelay = `${Math.random() * 3}s`;
+
+            const [petalColor, centerColor] = FLOWER_COLORS[Math.floor(Math.random() * FLOWER_COLORS.length)];
+            const petalCount = 4 + Math.floor(Math.random() * 3);
+            const petalSize = 3 + Math.random() * 2;
+
+            for (let i = 0; i < petalCount; i++) {
+                const petal = document.createElement('div');
+                petal.className = 'flower-petal';
+                const angle = (i / petalCount) * 360;
+                const rad = (angle * Math.PI) / 180;
+                const px = Math.cos(rad) * petalSize;
+                const py = Math.sin(rad) * petalSize;
+                petal.style.width = `${petalSize}px`;
+                petal.style.height = `${petalSize}px`;
+                petal.style.background = petalColor;
+                petal.style.left = `${px}px`;
+                petal.style.top = `${py}px`;
+                el.appendChild(petal);
+            }
+
+            // Center
+            const center = document.createElement('div');
+            center.className = 'flower-center';
+            center.style.background = centerColor;
+            center.style.left = '-2px';
+            center.style.top = '-2px';
+            el.appendChild(center);
+
+            // Stem
+            const stem = document.createElement('div');
+            const stemH = 6 + Math.random() * 8;
+            stem.style.cssText = `
+                width:1.5px;height:${stemH}px;
+                background:#4ade80;
+                position:absolute;top:4px;left:0px;
+                border-radius:0 0 1px 1px;
+            `;
+            el.appendChild(stem);
+
+            return el;
+        };
+
+        const spawnFlower = (worldX: number): void => {
+            if (!grassContainer || isNightTime() || currentElevation < 500 || worldX < vegetationStartX) return;
+            const el = buildFlower();
+            el.style.position = 'absolute';
+            el.style.left = '0px';
+            el.style.opacity = `${0.6 + Math.random() * 0.3}`;
+            grassContainer.appendChild(el);
+            flowers.push({el, worldX});
+        };
+
+        const updateFlowers = (): void => {
+            if (!grassContainer) return;
+            const svgRect = roadSvg.getBoundingClientRect();
+            const sceneRect = sceneWrapper.getBoundingClientRect();
+            const scaleX = svgRect.width / 1000;
+            const scaleY = svgRect.height / 400;
+
+            // Spawn flowers ahead
+            const rightEdge = roadOffsetX + 1200;
+            while (flowerNextX < rightEdge) {
+                if (Math.random() < 0.6) spawnFlower(flowerNextX);
+                flowerNextX += FLOWER_INTERVAL + Math.random() * 60;
+            }
+
+            for (let i = flowers.length - 1; i >= 0; i--) {
+                const f = flowers[i];
+                const screenX = (f.worldX - roadOffsetX) * scaleX + (svgRect.left - sceneRect.left);
+
+                if (screenX < -20) {
+                    f.el.remove();
+                    flowers.splice(i, 1);
+                    continue;
+                }
+
+                let roadY = 320;
+                for (let j = 0; j < roadPoints.length - 1; j++) {
+                    const p0 = roadPoints[j];
+                    const p1 = roadPoints[j + 1];
+                    if (f.worldX >= p0.x && f.worldX <= p1.x) {
+                        const t = (f.worldX - p0.x) / (p1.x - p0.x);
+                        roadY = p0.y + (p1.y - p0.y) * t;
+                        break;
+                    }
+                }
+
+                const screenY = svgRect.top - sceneRect.top + roadY * scaleY;
+                // Flowers slightly above road
+                f.el.style.left = `${screenX + 5}px`;
+                f.el.style.top = `${screenY - 8}px`;
+            }
         };
 
         // =============================================
@@ -576,7 +1049,7 @@ function initDashboard() {
 
             const animateMetric = (el: HTMLElement | null, value: string): void => {
                 if (!el) return;
-                gsap.to(el, {
+                gsapTo(el, {
                     opacity: 0,
                     y: -8,
                     duration: 0.15,
@@ -605,29 +1078,51 @@ function initDashboard() {
             const angle = Number(btn.getAttribute('data-activity-road-angle') ?? '0');
             const elevation = Number(btn.getAttribute('data-activity-elevation-raw') ?? '0');
             const hour = Number(btn.getAttribute('data-activity-start-hour') ?? '12');
-            const wasNight = isNightTime();
 
-            currentSpeed = speed > 0 ? speed : 2.5;
+            // Update metrics immediately
+            setMetrics(btn);
+
+            // Apply new road angle immediately so new terrain segments use it —
+            // the flag will visually mark the slope transition point.
             currentAngle = angle;
-            currentElevation = elevation;
-            currentHour = hour;
-            sceneWrapper.dataset.speed = String(currentSpeed);
             sceneWrapper.dataset.angle = String(currentAngle);
 
-            updateScrollSpeed();
-            setMetrics(btn);
-            currentElevation = elevation;
-            applySkyColors(hour);
-
-            // Place activity flag on the road ahead of the runner
-            const activityName = btn.getAttribute('data-activity-name') ?? '';
-            placeFlag(activityName);
-
-            // Clear old elements if switching between day/night
-            if (wasNight !== isNightTime()) {
-                scrollElements.forEach((item) => item.el.remove());
-                scrollElements.length = 0;
+            // Update vegetation boundary immediately (starts at the flag position)
+            const wasHighElevation = currentElevation >= 500;
+            const newHighElevation = elevation >= 500;
+            currentElevation = elevation; // update immediately for vegetation checks
+            const flagWorldX = roadOffsetX + 1100;
+            if (!wasHighElevation && newHighElevation) {
+                vegetationStartX = flagWorldX;
+            } else if (wasHighElevation && !newHighElevation) {
+                vegetationStartX = Infinity;
             }
+
+            // Place activity flag on the road ahead of the runner,
+            // with pending speed/sky values that will apply when the runner reaches it
+            const activityName = btn.getAttribute('data-activity-name') ?? '';
+            const worldX = roadOffsetX + 1100;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'scene-flag';
+            const banner = document.createElement('div');
+            banner.className = 'scene-flag-banner';
+            const pole = document.createElement('div');
+            pole.className = 'scene-flag-pole';
+            wrapper.appendChild(banner);
+            wrapper.appendChild(pole);
+            wrapper.addEventListener('mouseenter', () => showFlagTooltip(activityName, wrapper));
+            wrapper.addEventListener('mouseleave', hideFlagTooltip);
+            sceneWrapper.appendChild(wrapper);
+            flags.push({
+                el: wrapper,
+                worldX,
+                name: activityName,
+                pendingSpeed: speed > 0 ? speed : 2.5,
+                pendingAngle: angle,
+                pendingElevation: elevation,
+                pendingHour: hour,
+                applied: false,
+            });
 
             // Update aria-pressed on all currently visible activity buttons
             const allVisible = Array.from(document.querySelectorAll('.activity-item'));
@@ -646,6 +1141,9 @@ function initDashboard() {
             const initHour = Number(initial.getAttribute('data-activity-start-hour') ?? '12');
             currentHour = initHour;
             applySkyColors(initHour);
+            updateCelestial(initHour);
+            // If initial activity has high elevation, allow vegetation from the start
+            if (currentElevation >= 500) vegetationStartX = -Infinity;
         }
 
         LAYER_RATIOS.forEach((r, i) => {
@@ -653,6 +1151,7 @@ function initDashboard() {
         });
 
         initRoad();
+        initMountains();
         updateScrollSpeed();
         renderRoad();
         positionRunner();
@@ -662,6 +1161,7 @@ function initDashboard() {
             scheduleBob();
             safeTimeout(scheduleSurprise, 2000);
             safeTimeout(scheduleRunnerDrift, 3000);
+            safeTimeout(scheduleBird, 1000);
         }
 
         window.addEventListener('resize', positionRunner);
@@ -800,5 +1300,17 @@ function initDashboard() {
     }
 } // end initDashboard
 
-// astro:page-load fires on initial load and on every SPA navigation
-document.addEventListener('astro:page-load', initDashboard);
+// Debounced init: astro:page-load fires on initial + SPA navigation,
+// astro:after-swap fires before page-load during SPA nav.
+// We use a single debounced call to avoid double-init.
+let initTimer: number | null = null;
+const scheduleInit = () => {
+    if (initTimer !== null) clearTimeout(initTimer);
+    initTimer = window.setTimeout(() => {
+        initTimer = null;
+        initDashboard();
+    }, 10);
+};
+
+document.addEventListener('astro:page-load', scheduleInit);
+document.addEventListener('astro:after-swap', scheduleInit);

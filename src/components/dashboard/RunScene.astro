@@ -9,7 +9,7 @@ const { initialSpeed, initialRoadAngle } = Astro.props;
 
 <section class="game-scene" aria-label="Animazione corsa">
 	<div class="scene-wrapper" data-speed={String(initialSpeed)} data-angle={String(initialRoadAngle)}>
-		{/* Sky layer (behind clouds) */}
+		{/* Sky layer (behind everything) */}
 		<svg class="sky-svg" viewBox="0 0 1000 400" preserveAspectRatio="none">
 			<defs>
 				<linearGradient id="sky-gradient" x1="0" y1="0" x2="0" y2="1">
@@ -21,8 +21,19 @@ const { initialSpeed, initialRoadAngle } = Astro.props;
 			<polygon id="sky-fill" fill="url(#sky-gradient)" points="" />
 		</svg>
 
-		{/* Scrolling elements container (clouds, stars) - between sky and road */}
+		{/* Celestial body (sun/moon) */}
+		<div id="celestial-body" class="celestial-body celestial-sun" aria-hidden="true">
+			<div class="celestial-glow"></div>
+		</div>
+
+		{/* Mountain silhouettes (parallax background) */}
+		<div id="mountains-container" class="mountains-container" aria-hidden="true" />
+
+		{/* Scrolling elements container (clouds, stars, birds) - between sky and road */}
 		<div id="scrolling-elements" class="scrolling-elements" />
+
+		{/* Birds container */}
+		<div id="birds-container" class="birds-container" aria-hidden="true" />
 
 		{/* Road layer (in front of clouds) */}
 		<svg class="road-svg" viewBox="0 0 1000 400" preserveAspectRatio="none">
@@ -30,6 +41,9 @@ const { initialSpeed, initialRoadAngle } = Astro.props;
 			{/* Ground fill below road */}
 			<polygon id="ground-fill" class="ground-fill" points="" />
 		</svg>
+
+		{/* Grass container (on top of road edges) */}
+		<div id="grass-container" class="grass-container" aria-hidden="true" />
 
 		<img
 			src="/running-stickman.gif"
