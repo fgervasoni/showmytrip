@@ -26,11 +26,12 @@ const { initialSpeed, initialRoadAngle } = Astro.props;
 			<div class="celestial-glow"></div>
 		</div>
 
+		{/* Scrolling elements container (clouds, stars, birds) - behind mountains */}
+		<div id="scrolling-elements" class="scrolling-elements" />
+
 		{/* Mountain silhouettes (parallax background) */}
 		<div id="mountains-container" class="mountains-container" aria-hidden="true" />
 
-		{/* Scrolling elements container (clouds, stars, birds) - between sky and road */}
-		<div id="scrolling-elements" class="scrolling-elements" />
 
 		{/* Birds container */}
 		<div id="birds-container" class="birds-container" aria-hidden="true" />
