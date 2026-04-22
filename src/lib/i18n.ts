@@ -52,6 +52,8 @@ const translations = {
 		bySport: 'By sport type',
 		activitySummary: 'Activity summary',
 		avgPaceLabel: 'Avg pace',
+		allSports: 'All',
+		sportFilter: 'Sport filter',
 		// Period selector
 		period7d: '7 days',
 		period31d: '31 days',
@@ -110,6 +112,8 @@ const translations = {
 		bySport: 'Per tipo di sport',
 		activitySummary: 'Riepilogo delle tue attività',
 		avgPaceLabel: 'Passo medio',
+		allSports: 'Tutti',
+		sportFilter: 'Filtro sport',
 		// Period selector
 		period7d: '7 giorni',
 		period31d: '31 giorni',

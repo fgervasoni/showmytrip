@@ -21,8 +21,9 @@ interface Props {
 
 const { activities, locale, units } = Astro.props;
 
-const validActivities = activities.filter((a) => a.distance && a.moving_time);
+const validActivities = activities.filter((a) => a.distance || a.moving_time);
 const count = validActivities.length;
+const hasDistance = validActivities.some((a) => a.distance);
 
 // Totals
 const totalDistance = validActivities.reduce((sum, a) => sum + (a.distance ?? 0), 0);
@@ -35,14 +36,15 @@ const avgDistance = count > 0 ? totalDistance / count : 0;
 const avgMovingTime = count > 0 ? totalTime / count : 0;
 const avgElevation = count > 0 ? totalElevation / count : 0;
 
+const distActivities = validActivities.filter((a) => a.distance && a.moving_time);
 const hrActivities = validActivities.filter((a) => typeof a.average_heartrate === 'number');
 const avgHr = hrActivities.length > 0
 	? hrActivities.reduce((sum, a) => sum + (a.average_heartrate ?? 0), 0) / hrActivities.length
 	: 0;
 
 // Records
-const longestRun = validActivities.reduce<RunActivity | null>((best, a) => (!best || (a.distance ?? 0) > (best.distance ?? 0)) ? a : best, null);
-const fastestRun = validActivities.reduce<RunActivity | null>((best, a) => (!best || (a.average_speed ?? 0) > (best.average_speed ?? 0)) ? a : best, null);
+const longestRun = distActivities.reduce<RunActivity | null>((best, a) => (!best || (a.distance ?? 0) > (best.distance ?? 0)) ? a : best, null);
+const fastestRun = distActivities.reduce<RunActivity | null>((best, a) => (!best || (a.average_speed ?? 0) > (best.average_speed ?? 0)) ? a : best, null);
 const mostElevation = validActivities.reduce<RunActivity | null>((best, a) => (!best || (a.total_elevation_gain ?? 0) > (best.total_elevation_gain ?? 0)) ? a : best, null);
 const longestDuration = validActivities.reduce<RunActivity | null>((best, a) => (!best || (a.moving_time ?? 0) > (best.moving_time ?? 0)) ? a : best, null);
 const mostKudos = validActivities.reduce<RunActivity | null>((best, a) => (!best || (a.kudos_count ?? 0) > (best.kudos_count ?? 0)) ? a : best, null);
@@ -87,18 +89,22 @@ if (activityDates.length > 0) {
 				<h3>{t(locale, 'activities')}</h3>
 				<p>{count}</p>
 			</article>
-			<article class="card">
-				<h3>{t(locale, 'distance')}</h3>
-				<p>{formatDistance(totalDistance, units)}</p>
-			</article>
+			{hasDistance && (
+				<article class="card">
+					<h3>{t(locale, 'distance')}</h3>
+					<p>{formatDistance(totalDistance, units)}</p>
+				</article>
+			)}
 			<article class="card">
 				<h3>{t(locale, 'time')}</h3>
 				<p>{formatDuration(totalTime)}</p>
 			</article>
-			<article class="card">
-				<h3>{t(locale, 'elevation')}</h3>
-				<p>{Math.round(totalElevation)} m</p>
-			</article>
+			{hasDistance && (
+				<article class="card">
+					<h3>{t(locale, 'elevation')}</h3>
+					<p>{Math.round(totalElevation)} m</p>
+				</article>
+			)}
 			<article class="card">
 				<h3>{t(locale, 'kudos')}</h3>
 				<p>{totalKudos}</p>
@@ -110,22 +116,28 @@ if (activityDates.length > 0) {
 	<section aria-label={t(locale, 'averagesPerActivity')}>
 		<h2 class="section-title"><span class="app-icon" set:html={chartIcon} /> {t(locale, 'averagesPerActivity')}</h2>
 		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-			<article class="card">
-				<h3>{t(locale, 'distance')}</h3>
-				<p>{formatDistance(avgDistance, units)}</p>
-			</article>
+			{hasDistance && (
+				<article class="card">
+					<h3>{t(locale, 'distance')}</h3>
+					<p>{formatDistance(avgDistance, units)}</p>
+				</article>
+			)}
 			<article class="card">
 				<h3>{t(locale, 'time')}</h3>
 				<p>{formatDuration(avgMovingTime)}</p>
 			</article>
-			<article class="card">
-				<h3>{t(locale, 'pace')}</h3>
-				<p>{formatPace(avgDistance, avgMovingTime, units)}</p>
-			</article>
-			<article class="card">
-				<h3>{t(locale, 'elevation')}</h3>
-				<p>{Math.round(avgElevation)} m</p>
-			</article>
+			{hasDistance && (
+				<article class="card">
+					<h3>{t(locale, 'pace')}</h3>
+					<p>{formatPace(avgDistance, avgMovingTime, units)}</p>
+				</article>
+			)}
+			{hasDistance && (
+				<article class="card">
+					<h3>{t(locale, 'elevation')}</h3>
+					<p>{Math.round(avgElevation)} m</p>
+				</article>
+			)}
 			{avgHr > 0 && (
 				<article class="card">
 					<h3>{t(locale, 'heartRate')}</h3>
@@ -209,9 +221,9 @@ if (activityDates.length > 0) {
 							<h3>{type}</h3>
 							<p>{acts.length} <span class="text-sm font-normal text-gray-400">{t(locale, 'activities').toLowerCase()}</span></p>
 							<div class="mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
-								<div>{t(locale, 'distance')}: {formatDistance(dist, units)}</div>
-								<div>{t(locale, 'time')}: {formatDuration(time)}</div>
-								<div>{t(locale, 'avgPaceLabel')}: {formatPace(dist / acts.length, time / acts.length, units)}</div>
+								{dist > 0 && <div>{t(locale, 'distance')}: {formatDistance(dist, units)}</div>}
+								{time > 0 && <div>{t(locale, 'time')}: {formatDuration(time)}</div>}
+								{dist > 0 && time > 0 && <div>{t(locale, 'avgPaceLabel')}: {formatPace(dist / acts.length, time / acts.length, units)}</div>}
 							</div>
 						</article>
 					);

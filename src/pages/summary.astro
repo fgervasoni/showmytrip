@@ -42,6 +42,13 @@ const athleteName =
 	typeof dashboardData?.athlete === 'object' && dashboardData?.athlete !== null && 'firstname' in dashboardData.athlete
 		? `${String((dashboardData.athlete as { firstname?: string }).firstname ?? '')} ${String((dashboardData.athlete as { lastname?: string }).lastname ?? '')}`.trim()
 		: '';
+
+// Sport types for filtering
+const sportTypes = [...new Set(recentActivities.filter(a => a.type).map(a => a.type!))].sort();
+const selectedSport = Astro.url.searchParams.get('sport') ?? 'all';
+const filteredActivities = selectedSport === 'all'
+	? recentActivities
+	: recentActivities.filter(a => a.type === selectedSport);
 ---
 
 <Layout>
@@ -72,11 +79,37 @@ const athleteName =
 						{periodLabels[days]}
 					</a>
 				))}
+		</nav>
+		{sportTypes.length > 1 && (
+			<nav aria-label={t(locale, 'sportFilter')} class="flex gap-2 flex-wrap mb-6">
+				{['all', ...sportTypes].map((sport) => {
+					const params = new URLSearchParams();
+					params.set('days', String(selectedDays));
+					if (sport !== 'all') params.set('sport', sport);
+					const label = sport === 'all' ? t(locale, 'allSports') : sport;
+					return (
+						<a
+							href={`?${params.toString()}`}
+							class={[
+								'px-4 py-1.5 rounded-full text-sm font-medium transition-colors border',
+								selectedSport === sport
+									? 'bg-emerald-500 border-emerald-500 text-white'
+									: 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-emerald-400 hover:text-emerald-500',
+							].join(' ')}
+							data-route-loading
+							data-loading-label={t(locale, 'loadingPeriod')}
+							aria-current={selectedSport === sport ? 'page' : undefined}
+						>
+							{label}
+						</a>
+					);
+				})}
 			</nav>
-			{recentActivities.length === 0 ? (
+		)}
+		{filteredActivities.length === 0 ? (
 				<p class="text-center text-gray-400 py-12">{t(locale, 'noActivitiesInPeriod')}</p>
 			) : (
-				<AverageStats activities={recentActivities} locale={locale} units={units} />
+				<AverageStats activities={filteredActivities} locale={locale} units={units} />
 			)}
 		</div>
 			<Footer />

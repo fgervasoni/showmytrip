@@ -43,6 +43,27 @@ function getAthleteId(athlete: unknown): number | null {
     return typeof maybeId === 'number' ? maybeId : null;
 }
 
+async function fetchAllActivities(accessToken: string, afterTimestamp: number): Promise<StravaEndpointResult> {
+    const perPage = 100;
+    let page = 1;
+    const allActivities: unknown[] = [];
+
+    while (true) {
+        const result = await fetchStravaEndpoint(
+            `/athlete/activities?per_page=${perPage}&page=${page}&after=${afterTimestamp}`,
+            accessToken,
+        );
+        if (result.error) return result;
+        const batch = result.data as unknown[];
+        if (!Array.isArray(batch) || batch.length === 0) break;
+        allActivities.push(...batch);
+        if (batch.length < perPage) break;
+        page++;
+    }
+
+    return { data: allActivities, error: null };
+}
+
 export async function getStravaDashboardData(accessToken: string): Promise<Record<string, unknown>> {
     const cacheKey = `dashboard:${accessToken}`;
     const cached = cache.get(cacheKey);
@@ -90,7 +111,7 @@ export async function getStravaAthleteData(accessToken: string, days = 7): Promi
                 data: null,
                 error: 'Impossibile recuperare stats: id atleta non disponibile.',
             }),
-        fetchStravaEndpoint(`/athlete/activities?per_page=50&page=1&after=${afterTimestamp}`, accessToken),
+        fetchAllActivities(accessToken, afterTimestamp),
     ]);
 
     const errors = {
