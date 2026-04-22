@@ -1,7 +1,7 @@
 import gsap from 'gsap';
 import {
-    formatDate, formatDistance, formatDuration, formatPace, formatSpeed,
-    getRoadAngle, getRunnerLiftPx, type RunActivity, type Units,
+    formatDate, formatDistance, formatDuration, formatPace,
+    getRoadAngle, type RunActivity, type Units,
 } from '../lib/run-helpers';
 import {
     type SceneState, type FlagData, type ScrollElement, type BirdData,
@@ -10,7 +10,7 @@ import {
 } from './scene/scene-types';
 import { SEGMENT_WIDTH, initRoad, renderRoad, getLocalSlope, generateNextY } from './scene/scene-road';
 import { positionRunner } from './scene/scene-runner';
-import { applySkyColors, updateCelestial, isNightTime } from './scene/scene-sky';
+import { applySkyColors, updateCelestial } from './scene/scene-sky';
 import { initMountains, updateMountains } from './scene/scene-mountains';
 import { scheduleBird, updateBirds } from './scene/scene-birds';
 import { LAYER_RATIOS, renderScrollElements } from './scene/scene-clouds';
@@ -306,12 +306,10 @@ function initDashboard() {
                 data-activity-name="${esc(name)}" data-activity-pace="${esc(pace)}"
                 data-activity-distance="${esc(distance)}"
                 data-activity-duration="${esc(formatDuration(activity.moving_time))}"
-                data-activity-speed-label="${esc(formatSpeed(activity.average_speed))}"
                 data-activity-elevation="${esc(activity.total_elevation_gain ? `${activity.total_elevation_gain} m` : '-')}"
                 data-activity-elevation-raw="${esc(String(activity.total_elevation_gain ?? 0))}"
                 data-activity-kudos="${esc(typeof activity.kudos_count === 'number' ? String(activity.kudos_count) : '-')}"
                 data-activity-road-angle="${esc(getRoadAngle(activity).toFixed(2))}"
-                data-activity-runner-lift="${esc(String(getRunnerLiftPx(activity)))}"
                 data-activity-start-hour="${esc(activity.start_date ? String(new Date(activity.start_date).getHours()) : '12')}"
                 aria-pressed="${isSelected ? 'true' : 'false'}">
                 <span class="activity-item-title">${esc(name)}</span>

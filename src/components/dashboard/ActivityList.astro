@@ -1,16 +1,13 @@
 ---
-import type {RunActivity} from '../../lib/run-helpers';
+import type {RunActivity, Units} from '../../types';
 import {
     formatDate,
     formatDistance,
     formatDuration,
     formatPace,
-    formatSpeed,
     getRoadAngle,
-    getRunnerLiftPx,
 } from '../../lib/run-helpers';
 import {t, type Locale} from '../../lib/i18n';
-import type {Units} from '../../lib/run-helpers';
 
 interface Props {
     activities: RunActivity[];
@@ -54,12 +51,10 @@ const hasPrev = currentPage > 0;
                             data-activity-pace={formatPace(activity.distance, activity.moving_time, units)}
                             data-activity-distance={formatDistance(activity.distance, units)}
                             data-activity-duration={formatDuration(activity.moving_time)}
-                            data-activity-speed-label={formatSpeed(activity.average_speed)}
                             data-activity-elevation={activity.total_elevation_gain ? `${activity.total_elevation_gain} m` : '-'}
                             data-activity-elevation-raw={String(activity.total_elevation_gain ?? 0)}
                             data-activity-kudos={typeof activity.kudos_count === 'number' ? String(activity.kudos_count) : '-'}
                             data-activity-road-angle={getRoadAngle(activity).toFixed(2)}
-                            data-activity-runner-lift={String(getRunnerLiftPx(activity))}
                             data-activity-start-hour={activity.start_date ? String(new Date(activity.start_date).getHours()) : '12'}
                             aria-pressed={activity.id === selectedActivity?.id ? 'true' : 'false'}
                     >
@@ -73,11 +68,11 @@ const hasPrev = currentPage > 0;
             ))}
         </div>
         <div
-            class="activities-loading-indicator"
-            id="activities-loading-indicator"
-            role="status"
-            aria-live="polite"
-            aria-hidden="true"
+                class="activities-loading-indicator"
+                id="activities-loading-indicator"
+                role="status"
+                aria-live="polite"
+                aria-hidden="true"
         >
             <span class="loading-spinner" aria-hidden="true"></span>
             <span>{t(locale, 'loadingActivities')}</span>

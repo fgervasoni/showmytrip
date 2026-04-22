@@ -1,15 +1,14 @@
-import { type ScrollElement, type RoadPoint, type SceneState } from './scene-types';
-import { isNightTime } from './scene-sky';
+import {type RoadPoint, type SceneState, type ScrollElement} from './scene-types';
+import {isNightTime} from './scene-sky';
 
 const LAYER_RATIOS = [0.025, 0.07, 0.16];
-const LAYER_INTERVALS = [220, 120, 190];
+const LAYER_INTERVALS = [300, 170, 260];
 const LAYER_W = [[22, 48], [50, 110], [80, 155]];
 const LAYER_H_MULT = [0.38, 0.32, 0.27];
 const LAYER_OP = [[0.18, 0.32], [0.38, 0.65], [0.08, 0.18]];
 const LAYER_Y = [[0.03, 0.22], [0.06, 0.50], [0.02, 0.28]];
-const LAYER_Z = [2, 4, 1];
 
-export { LAYER_RATIOS };
+export {LAYER_RATIOS};
 
 function buildCloud(w: number, h: number): HTMLElement {
     const el = document.createElement('div');
@@ -17,7 +16,7 @@ function buildCloud(w: number, h: number): HTMLElement {
     el.style.width = `${w}px`;
     el.style.height = `${h}px`;
 
-    const bumpCount = 2 + Math.floor(Math.random() * 3);
+    const bumpCount = 3 + Math.floor(Math.random() * 5);
     for (let i = 0; i < bumpCount; i++) {
         const bump = document.createElement('div');
         const bw = Math.round(w * (0.3 + Math.random() * 0.35));
@@ -87,7 +86,7 @@ function spawnElement(
         el.style.top = `${top}px`;
         el.style.opacity = `${0.5 + Math.random() * 0.5}`;
         container.appendChild(el);
-        scrollElements.push({ el, worldX, parallaxRatio: LAYER_RATIOS[layerIdx], topPx: top, heightPx: 5 });
+        scrollElements.push({el, worldX, parallaxRatio: LAYER_RATIOS[layerIdx], topPx: top, heightPx: 5});
     } else {
         const [wMin, wMax] = LAYER_W[layerIdx];
         const w = wMin + Math.random() * (wMax - wMin);
@@ -102,7 +101,7 @@ function spawnElement(
         el.style.left = '0px';
         el.style.top = `${top}px`;
         container.appendChild(el);
-        scrollElements.push({ el, worldX, parallaxRatio: LAYER_RATIOS[layerIdx], topPx: top, heightPx: h });
+        scrollElements.push({el, worldX, parallaxRatio: LAYER_RATIOS[layerIdx], topPx: top, heightPx: h});
     }
 }
 

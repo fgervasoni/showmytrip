@@ -1,18 +1,6 @@
-export type RunActivity = {
-    id?: number;
-    name?: string;
-    type?: string;
-    distance?: number;
-    moving_time?: number;
-    average_speed?: number;
-    max_speed?: number;
-    total_elevation_gain?: number;
-    kudos_count?: number;
-    average_heartrate?: number;
-    start_date?: string;
-};
+import type {RunActivity, Units} from '../types';
 
-export type Units = 'km' | 'mi';
+export type {RunActivity, Units};
 
 const KM_TO_MI = 0.621371;
 
@@ -67,12 +55,6 @@ export function formatDate(value?: string): string {
     });
 }
 
-export function getRoadDuration(speed?: number): string {
-    const safeSpeed = speed && speed > 0 ? speed : 2.5;
-    const duration = Math.max(0.8, Math.min(2.2, 3.6 / safeSpeed));
-    return `${duration.toFixed(2)}s`;
-}
-
 export function getRoadAngle(activity?: RunActivity): number {
     if (!activity?.distance || !activity?.total_elevation_gain || activity.distance <= 0) {
         return 0;
@@ -83,21 +65,4 @@ export function getRoadAngle(activity?: RunActivity): number {
     return Math.max(0, Math.min(35, angle));
 }
 
-export function getRunnerLiftPx(activity?: RunActivity): number {
-    const angle = getRoadAngle(activity);
-    return Math.round(angle * -3);
-}
-
-export function buildRoadPath(angleDeg: number, bumps: number[] = [0, -6, 4, -5, 3, -2, 0]): string {
-    const angleRad = (angleDeg * Math.PI) / 180;
-    const slopeDelta = Math.tan(angleRad) * 600;
-    const baseY = 160;
-    const xPoints = [0, 167, 333, 500, 667, 833, 1000];
-    const points = xPoints.map((x, idx) => {
-        const t = x / 1000;
-        const y = baseY - slopeDelta * t + (bumps[idx] ?? 0);
-        return `${x},${Math.round(Math.max(20, Math.min(190, y)))}`;
-    });
-    return `M${points.join(' L')}`;
-}
 
