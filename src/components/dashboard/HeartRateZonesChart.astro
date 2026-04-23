@@ -1,0 +1,173 @@
+---
+import type { RunActivity } from '../../types';
+import { t, type Locale } from '../../lib/i18n';
+import { formatDuration } from '../../lib/run-helpers';
+
+interface ZoneDistribution {
+    zone: number;
+    label: string;
+    min: number;
+    max: number;
+    time: number;
+}
+
+interface Props {
+    activities: RunActivity[];
+    zones: unknown;
+    locale: Locale;
+}
+
+const { activities, zones, locale } = Astro.props;
+
+const ZONE_LABELS = ['Recovery', 'Endurance', 'Tempo', 'Threshold', 'VO2max'];
+
+// Get activities with HR data
+const activitiesWithHR = activities.filter((a) => a.average_heartrate && a.moving_time);
+
+// Try to parse zones from Strava /athlete/zones API response
+function parseStravaZones(raw: unknown): { min: number; max: number }[] | null {
+    if (!raw || typeof raw !== 'object') return null;
+
+    // Response format: { heart_rate: { zones: [{ min, max }, ...] } }
+    if ('heart_rate' in (raw as Record<string, unknown>)) {
+        const hr = (raw as Record<string, unknown>).heart_rate;
+        if (hr && typeof hr === 'object' && 'zones' in (hr as Record<string, unknown>)) {
+            const z = (hr as { zones: Array<{ min: number; max: number }> }).zones;
+            if (Array.isArray(z) && z.length > 0) {
+                return z.map((b) => ({ min: b.min, max: b.max }));
+            }
+        }
+    }
+
+    // Alternative format: array with type === 'heartrate'
+    if (Array.isArray(raw)) {
+        const hrEntry = raw.find(
+            (z: Record<string, unknown>) => z.type === 'heartrate' && Array.isArray(z.distribution_buckets)
+        );
+        if (hrEntry) {
+            return (hrEntry as { distribution_buckets: Array<{ min: number; max: number }> })
+                .distribution_buckets.map((b) => ({ min: b.min, max: b.max }));
+        }
+    }
+    return null;
+}
+
+// Fallback: build zones from estimated max HR
+function buildEstimatedZones(maxHR: number): { min: number; max: number }[] {
+    const pcts = [0.50, 0.60, 0.70, 0.80, 0.90];
+    return pcts.map((pct, i) => ({
+        min: Math.round(pct * maxHR),
+        max: i < pcts.length - 1 ? Math.round(pcts[i + 1] * maxHR) - 1 : maxHR,
+    }));
+}
+
+const stravaZones = parseStravaZones(zones);
+
+let zoneBounds: { min: number; max: number }[];
+if (stravaZones && stravaZones.length > 0) {
+    zoneBounds = stravaZones;
+} else {
+    // Estimate max HR from activity data
+    const maxHRValues = activitiesWithHR
+        .map((a) => a.max_heartrate ?? a.average_heartrate ?? 0)
+        .filter((v) => v > 0);
+    const estimatedMaxHR = maxHRValues.length > 0 ? Math.max(...maxHRValues) : 0;
+    zoneBounds = estimatedMaxHR > 0 ? buildEstimatedZones(estimatedMaxHR) : [];
+}
+
+const distribution: ZoneDistribution[] = zoneBounds.map((z, i) => ({
+    zone: i + 1,
+    label: ZONE_LABELS[i] ?? `Z${i + 1}`,
+    min: z.min,
+    max: z.max,
+    time: 0,
+}));
+
+// Distribute activity time into zones based on average_heartrate
+for (const activity of activitiesWithHR) {
+    const hr = activity.average_heartrate!;
+    const time = activity.moving_time!;
+    for (let i = distribution.length - 1; i >= 0; i--) {
+        if (hr >= distribution[i].min) {
+            distribution[i].time += time;
+            break;
+        }
+    }
+}
+
+const totalTime = distribution.reduce((sum, d) => sum + d.time, 0);
+const hasData = totalTime > 0;
+
+// Zone colors: Z1 gray, Z2 blue, Z3 green, Z4 orange, Z5 red
+const ZONE_COLORS = ['#9ca3af', '#3b82f6', '#22c55e', '#f97316', '#ef4444'];
+
+function buildPieSlices(dist: ZoneDistribution[], total: number) {
+    const slices: { d: string; color: string; percent: number; zone: number }[] = [];
+    let cumAngle = -Math.PI / 2;
+    const cx = 100, cy = 100, r = 90;
+
+    for (let i = 0; i < dist.length; i++) {
+        const pct = dist[i].time / total;
+        if (pct === 0) continue;
+        const angle = pct * 2 * Math.PI;
+        const x1 = cx + r * Math.cos(cumAngle);
+        const y1 = cy + r * Math.sin(cumAngle);
+        const x2 = cx + r * Math.cos(cumAngle + angle);
+        const y2 = cy + r * Math.sin(cumAngle + angle);
+        const largeArc = angle > Math.PI ? 1 : 0;
+        const d = pct >= 1
+            ? `M${cx - r},${cy} A${r},${r} 0 1,1 ${cx + r},${cy} A${r},${r} 0 1,1 ${cx - r},${cy} Z`
+            : `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`;
+        slices.push({ d, color: ZONE_COLORS[i % ZONE_COLORS.length], percent: Math.round(pct * 100), zone: i + 1 });
+        cumAngle += angle;
+    }
+    return slices;
+}
+
+const slices = hasData ? buildPieSlices(distribution, totalTime) : [];
+---
+
+<div class="mt-8">
+    <h3 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
+        {t(locale, 'heartRateZones')}
+    </h3>
+    {!hasData ? (
+        <p class="text-center text-gray-400 py-6">{t(locale, 'noZonesData')}</p>
+    ) : (
+        <div class="flex flex-col sm:flex-row items-center gap-6">
+            <svg
+                viewBox="0 0 200 200"
+                class="w-48 h-48 flex-shrink-0"
+                role="img"
+                aria-label={t(locale, 'heartRateZones')}
+            >
+                {slices.map((s) => (
+                    <path d={s.d} fill={s.color} stroke="white" stroke-width="1.5" />
+                ))}
+            </svg>
+            <ul class="flex flex-col gap-2 text-sm" aria-label={t(locale, 'heartRateZones')}>
+                {distribution.map((d, i) => {
+                    const pct = totalTime > 0 ? Math.round((d.time / totalTime) * 100) : 0;
+                    const maxLabel = d.max === -1 ? '+' : `–${d.max}`;
+                    return (
+                        <li class="flex items-center gap-2">
+                            <span
+                                class="inline-block w-3 h-3 rounded-sm flex-shrink-0"
+                                style={`background:${ZONE_COLORS[i % ZONE_COLORS.length]}`}
+                            />
+                            <span class="text-gray-700 dark:text-gray-300">
+                                {t(locale, 'zone')} {d.zone} – {d.label}
+                                <span class="text-gray-400 text-xs ml-1">({d.min}{maxLabel} bpm)</span>
+                            </span>
+                            <span class="font-medium text-gray-800 dark:text-gray-100 ml-auto pl-3 whitespace-nowrap">
+                                {pct}% · {formatDuration(d.time)}
+                            </span>
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
+    )}
+</div>
+
+

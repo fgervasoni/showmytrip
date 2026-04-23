@@ -19,6 +19,9 @@ const dashboardData = await getStravaAthleteData(accessToken);
 const activities = Array.isArray(dashboardData?.recentActivities)
     ? (dashboardData.recentActivities as RunActivity[])
     : [];
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const rateLimited = dashboardData?.rateLimited === true;
 ---
 
 <Layout>
@@ -113,4 +116,8 @@ const activities = Array.isArray(dashboardData?.recentActivities)
         </div>
     </main>
 </Layout>
-
+<script is:inline define:vars={{rateLimited}}>
+    if (rateLimited && window.__showRateLimitBanner) {
+        window.__showRateLimitBanner();
+    }
+</script>

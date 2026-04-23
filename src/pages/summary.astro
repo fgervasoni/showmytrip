@@ -7,6 +7,8 @@ import type {RunActivity, Units} from '../types';
 import {t, getLocale, getUnits, LOCALE_COOKIE, UNITS_COOKIE, type Locale} from '../lib/i18n';
 import DashboardHeader from '../components/DashboardHeader.astro';
 import Footer from '../components/Footer.astro';
+import HeartRateZonesChart from '../components/dashboard/HeartRateZonesChart.astro';
+import TimeBests from '../components/dashboard/TimeBests.astro';
 
 const locale = getLocale(Astro.cookies.get(LOCALE_COOKIE)?.value) as Locale;
 const units = getUnits(Astro.cookies.get(UNITS_COOKIE)?.value) as Units;
@@ -30,6 +32,10 @@ const recentActivities = Array.isArray(dashboardData?.recentActivities)
     ? (dashboardData.recentActivities as RunActivity[])
     : [];
 
+const allActivities = Array.isArray(dashboardData?.allActivities)
+    ? (dashboardData.allActivities as RunActivity[])
+    : [];
+
 const periodLabels: Record<PeriodDays, string> = {
     7: t(locale, 'period7d'),
     31: t(locale, 'period31d'),
@@ -50,6 +56,12 @@ const selectedSport = Astro.url.searchParams.get('sport') ?? 'all';
 const filteredActivities = selectedSport === 'all'
     ? recentActivities
     : recentActivities.filter(a => a.type === selectedSport);
+
+const allRunActivities = allActivities.filter(a => a.type === 'Run' || a.type === 'VirtualRun');
+
+const bestEfforts = Array.isArray(dashboardData?.bestEfforts) ? dashboardData.bestEfforts as Array<Record<string, unknown>> : [];
+const zones = dashboardData?.zones ?? null;
+const rateLimited = dashboardData?.rateLimited === true;
 ---
 
 <Layout>
@@ -62,56 +74,68 @@ const filteredActivities = selectedSport === 'all'
                     subtitle={t(locale, 'activitySummary')}
             />
             <div class="dashboard-body animate-slide-up">
-                {/* Period selector */}
-                <nav aria-label="Period selector" class="flex gap-2 flex-wrap mb-6">
-                    {([7, 31, 90, 180] as const).map((days) => (
-                            <a
-                                    href={`?days=${days}`}
-                                    class={[
-                                        'px-4 py-1.5 rounded-full text-sm font-medium transition-colors border',
-                                        selectedDays === days
-                                            ? 'bg-orange-500 border-orange-500 text-white'
-                                            : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-orange-400 hover:text-orange-500',
-                                    ].join(' ')}
-                                    data-route-loading
-                                    data-loading-label={t(locale, 'loadingPeriod')}
-                                    aria-current={selectedDays === days ? 'page' : undefined}
-                            >
-                                {periodLabels[days]}
-                            </a>
-                    ))}
-                </nav>
-                {sportTypes.length > 1 && (
-                        <nav aria-label={t(locale, 'sportFilter')} class="flex gap-2 flex-wrap mb-6">
-                            {['all', ...sportTypes].map((sport) => {
-                                const params = new URLSearchParams();
-                                params.set('days', String(selectedDays));
-                                if (sport !== 'all') params.set('sport', sport);
-                                const label = sport === 'all' ? t(locale, 'allSports') : sport;
-                                return (
-                                        <a
-                                                href={`?${params.toString()}`}
-                                                class={[
-                                                    'px-4 py-1.5 rounded-full text-sm font-medium transition-colors border',
-                                                    selectedSport === sport
-                                                        ? 'bg-emerald-500 border-emerald-500 text-white'
-                                                        : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-emerald-400 hover:text-emerald-500',
-                                                ].join(' ')}
-                                                data-route-loading
-                                                data-loading-label={t(locale, 'loadingPeriod')}
-                                                aria-current={selectedSport === sport ? 'page' : undefined}
-                                        >
-                                            {label}
-                                        </a>
-                                );
-                            })}
-                        </nav>
-                )}
-                {filteredActivities.length === 0 ? (
-                        <p class="text-center text-gray-400 py-12">{t(locale, 'noActivitiesInPeriod')}</p>
-                ) : (
-                        <AverageStats activities={filteredActivities} locale={locale} units={units}/>
-                )}
+                {/* All-time stats */}
+                <div class="rounded-2xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 p-5 mb-5">
+                    <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">{t(locale, 'allTimeSection')}</h2>
+                    <TimeBests activities={allRunActivities} bestEfforts={bestEfforts} locale={locale} units={units}/>
+                </div>
+                {/* Period-based stats */}
+                <div class="rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-5">
+                    <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">{t(locale, 'periodSection')}</h2>
+                    {/* Period selector */}
+                    <nav aria-label="Period selector" class="flex gap-2 flex-wrap mb-4">
+                        {([7, 31, 90, 180] as const).map((days) => (
+                                <a
+                                        href={`?days=${days}`}
+                                        class={[
+                                            'px-4 py-1.5 rounded-full text-sm font-medium transition-colors border',
+                                            selectedDays === days
+                                                ? 'bg-orange-500 border-orange-500 text-white'
+                                                : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-orange-400 hover:text-orange-500',
+                                        ].join(' ')}
+                                        data-route-loading
+                                        data-loading-label={t(locale, 'loadingPeriod')}
+                                        aria-current={selectedDays === days ? 'page' : undefined}
+                                >
+                                    {periodLabels[days]}
+                                </a>
+                        ))}
+                    </nav>
+                    {sportTypes.length > 1 && (
+                            <nav aria-label={t(locale, 'sportFilter')} class="flex gap-2 flex-wrap mb-4">
+                                {['all', ...sportTypes].map((sport) => {
+                                    const params = new URLSearchParams();
+                                    params.set('days', String(selectedDays));
+                                    if (sport !== 'all') params.set('sport', sport);
+                                    const label = sport === 'all' ? t(locale, 'allSports') : sport;
+                                    return (
+                                            <a
+                                                    href={`?${params.toString()}`}
+                                                    class={[
+                                                        'px-4 py-1.5 rounded-full text-sm font-medium transition-colors border',
+                                                        selectedSport === sport
+                                                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                                                            : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-emerald-400 hover:text-emerald-500',
+                                                    ].join(' ')}
+                                                    data-route-loading
+                                                    data-loading-label={t(locale, 'loadingPeriod')}
+                                                    aria-current={selectedSport === sport ? 'page' : undefined}
+                                            >
+                                                {label}
+                                            </a>
+                                    );
+                                })}
+                            </nav>
+                    )}
+                    {filteredActivities.length === 0 ? (
+                            <p class="text-center text-gray-400 py-8">{t(locale, 'noActivitiesInPeriod')}</p>
+                    ) : (
+                            <>
+                                <AverageStats activities={filteredActivities} locale={locale} units={units}/>
+                                <HeartRateZonesChart activities={filteredActivities} zones={zones} locale={locale}/>
+                            </>
+                    )}
+                </div>
             </div>
             <Footer/>
         </section>
@@ -120,7 +144,10 @@ const filteredActivities = selectedSport === 'all'
 <script>
     import '../scripts/settings-menu.ts';
 </script>
-<script is:inline define:vars={{apiErrors}}>
+<script is:inline define:vars={{apiErrors, rateLimited}}>
+    if (rateLimited && window.__showRateLimitBanner) {
+        window.__showRateLimitBanner();
+    }
     if (apiErrors) {
         Object.entries(apiErrors).forEach(([key, err]) => {
             if (err) console.error('[strava-data] ' + key + ':', err);

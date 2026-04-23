@@ -1,0 +1,50 @@
+---
+/**
+ * RateLimitBanner – global banner shown when Strava API returns HTTP 429.
+ * Include once in the Layout. Pages trigger it via window.__showRateLimitBanner().
+ * Client-side fetch 429 responses are also intercepted automatically.
+ */
+---
+
+<div id="rate-limit-banner" class="hidden sticky top-0 z-[10000] bg-amber-500 text-white text-sm font-medium px-4 py-2.5 text-center shadow-lg !m-0 !p-2.5" role="alert" style="margin:0!important;">
+    <span id="rate-limit-msg"></span>
+    <button id="rate-limit-dismiss" type="button" class="ml-3 inline-flex items-center font-bold hover:text-amber-100" aria-label="Dismiss">✕</button>
+</div>
+
+<script is:inline>
+(function() {
+    var shown = false;
+
+    function showRateLimitBanner() {
+        if (shown) return;
+        var banner = document.getElementById('rate-limit-banner');
+        var msg = document.getElementById('rate-limit-msg');
+        if (!banner || !msg) return;
+        shown = true;
+        var locale = (document.cookie.match(/smt_locale=(\w+)/) || [])[1] || 'en';
+        msg.textContent = locale === 'it'
+            ? '⚠️ Limite richieste Strava raggiunto. Alcuni dati potrebbero essere incompleti. Attendi qualche minuto e ricarica.'
+            : '⚠️ Strava rate limit reached. Some data may be incomplete. Please wait a few minutes and reload.';
+        banner.classList.remove('hidden');
+    }
+
+    window.__showRateLimitBanner = showRateLimitBanner;
+
+    var dismiss = document.getElementById('rate-limit-dismiss');
+    if (dismiss) {
+        dismiss.addEventListener('click', function() {
+            var banner = document.getElementById('rate-limit-banner');
+            if (banner) banner.classList.add('hidden');
+        });
+    }
+
+    var origFetch = window.fetch;
+    window.fetch = function() {
+        return origFetch.apply(this, arguments).then(function(response) {
+            if (response.status === 429) showRateLimitBanner();
+            return response;
+        });
+    };
+})();
+</script>
+

@@ -43,7 +43,7 @@ export function buildStravaAuthorizeUrl(stravaEnv: StravaEnv, state: string): st
         response_type: 'code',
         redirect_uri: stravaEnv.redirectUri,
         approval_prompt: 'auto',
-        scope: 'read,activity:read_all',
+        scope: 'read,activity:read_all,profile:read_all',
         state,
     });
 

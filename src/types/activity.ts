@@ -9,6 +9,7 @@ export type RunActivity = {
     total_elevation_gain?: number;
     kudos_count?: number;
     average_heartrate?: number;
+    max_heartrate?: number;
     start_date?: string;
 };
 

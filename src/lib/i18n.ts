@@ -71,6 +71,14 @@ const translations = {
         language: 'Language',
         theme: 'Theme',
         units: 'Units',
+        // Heart rate zones
+        heartRateZones: 'Heart Rate Zones',
+        zone: 'Zone',
+        noZonesData: 'No heart rate zone data available.',
+        bestTimes: 'Best Times by Distance',
+        periodSection: 'Period stats',
+        allTimeSection: 'All-time stats',
+        rateLimitWarning: 'Strava API rate limit reached. Some data may be incomplete. Please wait a few minutes and reload.',
     },
     it: {
         heroDescription: 'Collega il tuo account Strava per vedere la tua corsa animata e le statistiche principali.',
@@ -128,6 +136,13 @@ const translations = {
         language: 'Lingua',
         theme: 'Tema',
         units: 'Unità',
+        heartRateZones: 'Zone di frequenza cardiaca',
+        zone: 'Zona',
+        noZonesData: 'Nessun dato sulle zone di frequenza cardiaca.',
+        bestTimes: 'Migliori tempi per distanza',
+        periodSection: 'Statistiche del periodo',
+        allTimeSection: 'Statistiche di sempre',
+        rateLimitWarning: 'Limite di richieste Strava raggiunto. Alcuni dati potrebbero essere incompleti. Attendi qualche minuto e ricarica la pagina.',
     },
 } as const;
 

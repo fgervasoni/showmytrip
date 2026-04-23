@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import ClientRouter from 'astro/components/ClientRouter.astro';
+import RateLimitBanner from '../components/RateLimitBanner.astro';
 ---
 
 <!doctype html>
@@ -29,6 +30,7 @@ import ClientRouter from 'astro/components/ClientRouter.astro';
 		</script>
 	</head>
 	<body>
+		<RateLimitBanner />
 		<slot />
 		<script>
 			import '../scripts/route-loading.ts';
