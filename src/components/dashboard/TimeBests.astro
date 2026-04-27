@@ -128,6 +128,7 @@ const splitsErrorLabel = locale === 'it' ? 'Errore nel caricamento split' : 'Err
 const splitLabel = locale === 'it' ? 'Split' : 'Split';
 const closeLabel = locale === 'it' ? 'Chiudi' : 'Close';
 const bestSegmentLabel = locale === 'it' ? 'Segmento best effort' : 'Best effort segment';
+const viewSplitsLabel = locale === 'it' ? 'Vedi split' : 'View splits';
 const paceLabel = t(locale, 'pace');
 const hrLabel = t(locale, 'heartRate');
 const unitsValue = units;
@@ -144,20 +145,17 @@ const bestsData = JSON.stringify(bests.map(b => ({activityId: b.activityId, mete
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {bests.map((b) => (
                 <article
-                        class="card record-card cursor-pointer hover:ring-2 hover:ring-orange-300 dark:hover:ring-orange-600 transition-shadow"
-                        data-splits-btn
+                        class="card record-card"
                         data-activity-id={b.activityId}
                         data-target-meters={b.meters}
                         data-label={b.label}
                         data-activity-name={b.activityName}
-                        role="button"
-                        tabindex="0"
                 >
                     <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">
                         {b.label}
                         {b.source === 'effort' && (
                                 <span class="ml-1 text-[10px] text-emerald-500"
-                                      title={locale === 'it' ? 'Miglior segmento in una attività' : 'Best segment within an activity'}>⚡</span>
+                                      title={locale === 'it' ? 'Miglior segmento in una attività' : 'Best segment within an activity'}></span>
                         )}
                     </h3>
                     <p class="text-xl font-bold text-gray-800 dark:text-gray-100 mt-1">{formatDuration(b.movingTime)}</p>
@@ -168,40 +166,55 @@ const bestsData = JSON.stringify(bests.map(b => ({activityId: b.activityId, mete
                         )}
                     </div>
                     <span class="record-meta">{b.activityName} — {formatDate(b.startDate)}</span>
+                    <button
+                            type="button"
+                            class="splits-btn mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 transition-colors cursor-pointer"
+                            data-splits-btn
+                            data-activity-id={b.activityId}
+                            data-target-meters={b.meters}
+                            data-label={b.label}
+                            data-activity-name={b.activityName}
+                            aria-label={`${viewSplitsLabel} – ${b.label}`}
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M9 17V7m0 10l-3-3m3 3l3-3M15 7v10m0-10l-3 3m3-3l3 3"/>
+                        </svg>
+                        {viewSplitsLabel}
+                    </button>
                 </article>
         ))}
     </div>
 </div>
     )}
 
-{/* Modal - rendered as template, moved to body via JS */}
-<template id="splits-modal-tpl">
-    <div id="splits-modal" class="fixed inset-0 z-[9999] hidden" role="dialog" aria-modal="true"
-         style="position:fixed;top:0;left:0;right:0;bottom:0;">
-        <div id="splits-backdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-        <div class="absolute inset-0 flex items-start justify-center pt-[10vh] p-4 pointer-events-none overflow-y-auto">
-            <div id="splits-panel"
-                 class="pointer-events-auto bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden my-auto">
-                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-                    <div>
-                        <h3 id="splits-modal-title"
-                            class="font-semibold text-gray-800 dark:text-gray-100 text-base"></h3>
-                        <p id="splits-modal-subtitle" class="text-xs text-gray-400 mt-0.5"></p>
-                    </div>
-                    <button id="splits-close-btn" type="button"
-                            class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                            aria-label={closeLabel}>
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
+{/* Modal – directly in DOM, hidden by default */}
+<div id="splits-modal" class="fixed inset-0 z-[9999] hidden" role="dialog" aria-modal="true"
+     style="position:fixed;top:0;left:0;right:0;bottom:0;">
+    <div id="splits-backdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+    <div class="absolute inset-0 flex items-start justify-center pt-[10vh] p-4 pointer-events-none overflow-y-auto">
+        <div id="splits-panel"
+             class="pointer-events-auto bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden my-auto">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+                <div>
+                    <h3 id="splits-modal-title"
+                        class="font-semibold text-gray-800 dark:text-gray-100 text-base"></h3>
+                    <p id="splits-modal-subtitle" class="text-xs text-gray-400 mt-0.5"></p>
                 </div>
-                <div id="splits-modal-body" class="px-5 py-4 overflow-y-auto flex-1"></div>
+                <button id="splits-close-btn" type="button"
+                        class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                        aria-label={closeLabel}>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
             </div>
+            <div id="splits-modal-body" class="px-5 py-4 overflow-y-auto flex-1"></div>
         </div>
     </div>
-</template>
+</div>
 
+{/* Inline script: pass server-side vars to window for the module script */}
 <script is:inline define:vars={{
     unitsValue,
     splitsLoadingLabel,
@@ -212,16 +225,42 @@ const bestsData = JSON.stringify(bests.map(b => ({activityId: b.activityId, mete
     closeLabel,
     bestSegmentLabel
 }}>
-    (function () {
-        // Move modal from template to body root so it's above everything
-        var tpl = document.getElementById('splits-modal-tpl');
-        if (tpl && tpl.content) {
-            document.body.appendChild(tpl.content.cloneNode(true));
-            tpl.remove();
+    window.__timeBestsConfig = {
+        unitsValue: unitsValue,
+        splitsLoadingLabel: splitsLoadingLabel,
+        splitsErrorLabel: splitsErrorLabel,
+        splitLabel: splitLabel,
+        paceLabel: paceLabel,
+        hrLabel: hrLabel,
+        closeLabel: closeLabel,
+        bestSegmentLabel: bestSegmentLabel
+    };
+</script>
+
+{/* Module script: runs once, re-inits on every astro:page-load */}
+<script>
+    function initTimeBests() {
+        const cfg = (window as any).__timeBestsConfig;
+        if (!cfg) return;
+
+        const btns = document.querySelectorAll<HTMLElement>('[data-splits-btn]');
+        if (!btns.length) return;
+
+        // Remove previous escape listener
+        if ((window as any).__timeBestsEscHandler) {
+            document.removeEventListener('keydown', (window as any).__timeBestsEscHandler);
         }
 
+        // Move modal to body root so it overlays everything
+        const modalEl = document.getElementById('splits-modal');
+        if (modalEl && modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
+        }
+
+        const { unitsValue, splitsLoadingLabel, splitsErrorLabel, splitLabel, paceLabel, bestSegmentLabel } = cfg;
         const KM_TO_MI = 0.621371;
-        const cache = {};
+        const cache: Record<string, any[]> = {};
+
         const modal = document.getElementById('splits-modal');
         const backdrop = document.getElementById('splits-backdrop');
         const closeBtn = document.getElementById('splits-close-btn');
@@ -241,39 +280,40 @@ const bestsData = JSON.stringify(bests.map(b => ({activityId: b.activityId, mete
             document.body.style.overflow = '';
         }
 
-        if (backdrop) backdrop.addEventListener('click', closeModal);
-        if (closeBtn) closeBtn.addEventListener('click', closeModal);
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') closeModal();
-        });
+        backdrop?.addEventListener('click', closeModal);
+        closeBtn?.addEventListener('click', closeModal);
 
-        function formatSplitPace(seconds, u) {
+        const onEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') closeModal(); };
+        document.addEventListener('keydown', onEscape);
+        (window as any).__timeBestsEscHandler = onEscape;
+
+        function formatSplitPace(seconds: number, u: string) {
             const min = Math.floor(seconds / 60);
             const sec = Math.round(seconds % 60);
             return min + ':' + String(sec).padStart(2, '0') + ' /' + u;
         }
 
-        function renderSplits(splits, targetMeters) {
+        function renderSplits(splits: any[], targetMeters: number) {
             if (!splits || splits.length === 0) {
                 return '<p class="text-sm text-gray-400 py-4 text-center">No splits available</p>';
             }
 
-            // Calculate which splits are part of the best effort segment
-            // The best effort covers `targetMeters` distance starting from the fastest consecutive window
-            const totalActivityDist = splits.reduce(function (s, sp) {
-                return s + (sp.distance || 1000);
-            }, 0);
+            const totalActivityDist = splits.reduce((s: number, sp: any) => s + (sp.distance || 1000), 0);
             const isBestEffort = targetMeters < totalActivityDist * 0.95;
             let highlightStart = -1;
             let highlightEnd = -1;
 
             if (isBestEffort && targetMeters > 0) {
-                // Find the fastest window of consecutive splits covering targetMeters
+                let fullSplitsCount = splits.length;
+                const lastSplit = splits[splits.length - 1];
+                if (lastSplit && (lastSplit.distance || 1000) < 900) {
+                    fullSplitsCount = splits.length - 1;
+                }
                 const nSplitsNeeded = Math.ceil(targetMeters / 1000);
                 let bestWindowTime = Infinity;
                 let bestStart = 0;
 
-                for (let i = 0; i <= splits.length - nSplitsNeeded; i++) {
+                for (let i = 0; i <= fullSplitsCount - nSplitsNeeded; i++) {
                     let windowTime = 0;
                     for (let j = i; j < i + nSplitsNeeded; j++) {
                         windowTime += splits[j].moving_time;
@@ -288,14 +328,13 @@ const bestsData = JSON.stringify(bests.map(b => ({activityId: b.activityId, mete
             }
 
             let html = '';
-
             if (isBestEffort) {
                 html += '<div class="flex items-center gap-2 mb-3 text-xs"><span class="inline-block w-3 h-1.5 rounded bg-emerald-400"></span><span class="text-gray-500 dark:text-gray-400">' + bestSegmentLabel + '</span></div>';
             }
 
             html += '<div class="space-y-0.5">';
             html += '<div class="grid grid-cols-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-2">';
-            html += '<span>' + splitLabel + '</span><span class="text-center">' + paceLabel + '</span><span class="text-center">❤️</span><span class="text-right">⏱</span>';
+            html += '<span>' + splitLabel + '</span><span class="text-center">' + paceLabel + '</span><span class="text-center">BPM</span><span class="text-right">⏱</span>';
             html += '</div>';
 
             let cumTime = 0;
@@ -328,9 +367,9 @@ const bestsData = JSON.stringify(bests.map(b => ({activityId: b.activityId, mete
             return html;
         }
 
-        document.querySelectorAll('[data-splits-btn]').forEach(function (card) {
-            card.addEventListener('click', async function () {
-                const id = card.getAttribute('data-activity-id');
+        btns.forEach((card) => {
+            card.addEventListener('click', async () => {
+                const id = card.getAttribute('data-activity-id')!;
                 const targetMeters = parseInt(card.getAttribute('data-target-meters') || '0', 10);
                 const label = card.getAttribute('data-label') || '';
                 const actName = card.getAttribute('data-activity-name') || '';
@@ -352,17 +391,19 @@ const bestsData = JSON.stringify(bests.map(b => ({activityId: b.activityId, mete
                     const data = await res.json();
                     cache[id] = data.splits_metric || [];
                     if (bodyEl) bodyEl.innerHTML = renderSplits(cache[id], targetMeters);
-                } catch (e) {
+                } catch (_e) {
                     if (bodyEl) bodyEl.innerHTML = '<p class="text-sm text-red-400 py-8 text-center">' + splitsErrorLabel + '</p>';
                 }
             });
 
-            card.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter' || e.key === ' ') {
+            card.addEventListener('keydown', (e) => {
+                if ((e as KeyboardEvent).key === 'Enter' || (e as KeyboardEvent).key === ' ') {
                     e.preventDefault();
                     card.click();
                 }
             });
         });
-    })();
+    }
+
+    document.addEventListener('astro:page-load', initTimeBests);
 </script>
